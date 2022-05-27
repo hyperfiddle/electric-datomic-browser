@@ -1,5 +1,5 @@
 (ns user
-  (:require app.core))
+  (:require [app.core]))
 
 (defonce reactor nil)
 
