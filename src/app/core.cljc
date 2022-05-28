@@ -46,17 +46,21 @@
      :db/ident ::a-overview}
     Link))
 
-(p/defn EntityDetailsScreen [params]
-  (Link. "Home" {:route ::home :params 5})
-  (dom/h1 (dom/text (str "Entity Details: " params))))
+(p/defn EntityDetailsScreen [eid]
+  (Link. "Home" {:route ::home :params 10})
+  (c/DataViewer.
+    (str "Entity Details: " eid)
+    ~@(new (wrap q/entity-details eid))
+    {}
+    Link))
 
 (p/defn TransactionOverviewScreen [params]
-  (Link. "Home" {:route ::home :params 5})
+  (Link. "Home" {:route ::home :params 10})
   (dom/h1 (dom/text (str "Transaction Overview")))
   (dom/p (dom/text params)))
 
 (p/defn AttributeOverviewScreen [params]
-  (Link. "Home" {:route ::home :params 5})
+  (Link. "Home" {:route ::home :params 10})
   (dom/h1 (dom/text "Attribute Overview"))
   (dom/p (dom/text params)))
 

@@ -24,15 +24,20 @@
 (comment
   (last-transactions 10))
 
-(defn prepare-attributes [q-result]
+(defn process-pull [q-result]
   (->> q-result
        (map first)
-       (map #(update % :db/valueType :db/ident))
-       (map #(update % :db/cardinality :db/ident))
-       (map #(update % :db/unique :db/ident))))
+       (map (fn [m]
+              (update-vals
+                m
+                (fn [v]
+                  (cond
+                    (and (map? v) (contains? v :db/ident)) (:db/ident v)
+                    (and (map? v) (contains? v :db/id)) (:db/id v)
+                    :else v)))))))
 
 (defn identifying-attributes []
-  (prepare-attributes
+  (process-pull
     (d/q '[:find (pull ?e [*])
            :where
            [?e :db/valueType _]
@@ -44,7 +49,7 @@
   (identifying-attributes))
 
 (defn normal-attributes []
-  (prepare-attributes
+  (process-pull
     (d/q '[:find (pull ?e [*])
            :where
            [?e :db/valueType _]
@@ -54,3 +59,9 @@
 
 (comment
   (normal-attributes))
+
+(defn entity-details [e]
+  (process-pull [[(d/pull (db) '[*] e)]]))
+
+(comment
+  (entity-details 1))
