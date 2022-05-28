@@ -2,10 +2,11 @@
  :deps    {ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
            ch.qos.logback/logback-core    {:mvn/version "1.2.11"}
            com.datomic/client-api         {:mvn/version "1.0.58"}
+           com.google.guava/guava         {:mvn/version "31.1-jre"} ; force guava to latest to fix shadow issue
            hyperfiddle/photon             {:local/root "../photon"}
            org.clojure/clojure            {:mvn/version "1.11.1"}
            org.clojure/clojurescript      {:mvn/version "1.11.4"}
            thheller/shadow-cljs           {:mvn/version "2.18.0"}}
- :aliases {:dev {:extra-deps {} #_{com.datomic/dev-local {:mvn/version "1.0.243"}}
+ :aliases {:dev {:extra-deps {com.datomic/dev-local {:mvn/version "1.0.243"}}
                  :exec-fn    user/main
                  :exec-args  {}}}}
