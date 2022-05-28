@@ -14,18 +14,22 @@
     (when event
       (F. event))))
 
-(p/defn DataViewer [title ms]
-  (let [ks (u/all-keys ms)]
+(p/defn DataViewer [title maps key-routes Link]
+  (let [ks (u/all-keys maps)]
     (dom/h1 (dom/text title))
     (dom/table
       (dom/thead
         (dom/for [k ks]
           (dom/td (dom/style {"min-width" "5em"}) (dom/text k))))
       (dom/tbody
-        (dom/for [m ms]
+        (dom/for [m maps]
           (dom/tr
             (dom/for [k ks]
-              (dom/td (dom/text (m k))))))))))
+              (dom/td
+                (if (contains? key-routes k)
+                  (Link. (m k) {:route  (key-routes k)
+                                :params (m k)})
+                  (dom/text (m k)))))))))))
 
 (p/defn TimerTest []
   (dom/p (dom/span (dom/text "millisecond time: "))

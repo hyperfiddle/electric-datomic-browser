@@ -6,7 +6,8 @@
   (:import (hyperfiddle.photon Pending))
   #?(:cljs (:require-macros app.core)))                     ; forces shadow hot reload to also reload JVM at the same time
 
-(def !nav-state #?(:cljs (atom {::route ::home})))
+(def !nav-state #?(:cljs (atom {:route  ::home
+                                :params 5})))
 (p/def nav-state (p/watch !nav-state))
 
 (p/defn Link [label nav-data]
@@ -17,26 +18,46 @@
       (reset! !nav-state nav-data))))
 
 (p/defn HomeScreen [params]
-  (Link. "Other" {::route ::other})
-
   (c/DataViewer.
     "Last Transactions"
-    ~@(q/last-transactions))
+    ~@(q/last-transactions params)
+    {:db/id        ::e-details
+     :db/txInstant ::tx-overview}
+    Link)
   (c/DataViewer.
     "Identifying Attributes"
-    ~@(q/identifying-attributes))
+    ~@(q/identifying-attributes)
+    {:db/id    ::e-details
+     :db/ident ::a-overview}
+    Link)
   (c/DataViewer.
     "Normal Attributes"
-    ~@(q/normal-attributes)))
+    ~@(q/normal-attributes)
+    {:db/id    ::e-details
+     :db/ident ::a-overview}
+    Link))
 
-(p/defn OtherScreen [params]
-  (Link. "Home" {::route ::home}))
+(p/defn EntityDetailsScreen [params]
+  (Link. "Home" {:route ::home :params 5})
+  (dom/h1 (dom/text (str "Entity Details: " params))))
+
+(p/defn TransactionOverviewScreen [params]
+  (Link. "Home" {:route ::home :params 5})
+  (dom/h1 (dom/text (str "Transaction Overview")))
+  (dom/p (dom/text params)))
+
+(p/defn AttributeOverviewScreen [params]
+  (Link. "Home" {:route ::home :params 5})
+  (dom/h1 (dom/text "Attribute Overview"))
+  (dom/p (dom/text params)))
 
 (p/defn App []
   (dom/div
-    (condp = (::route nav-state)
-      ::home (HomeScreen. (::params nav-state))
-      ::other (OtherScreen. (::params nav-state)))
+    (condp = (:route nav-state)
+      ::home (HomeScreen. (:params nav-state))
+      ::e-details (EntityDetailsScreen. (:params nav-state))
+      ::tx-overview (TransactionOverviewScreen. (:params nav-state))
+      ::a-overview (AttributeOverviewScreen. (:params nav-state)))
 
     (c/TimerTest.)
     (c/ClickMeTest.)))

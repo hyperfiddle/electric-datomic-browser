@@ -12,13 +12,16 @@
   (-> (conn)
       (d/db)))
 
-(defn last-transactions []
+(defn last-transactions [n]
   (->> (d/q '[:find (pull ?tx [*])
               :where [?tx :db/txInstant]] (db))
-       (map first)))
+       (map first)
+       (sort-by :db/txInstant)
+       (reverse)
+       (take n)))
 
 (comment
-  (last-transactions))
+  (last-transactions 10))
 
 (defn prepare-attributes [q-result]
   (->> q-result
