@@ -9,7 +9,8 @@
   #?(:cljs (:require-macros app.core)))                     ; forces shadow hot reload to also reload JVM at the same time
 
 
-(defn wrap "run slow blocking fn on a threadpool"
+(defn wrap
+  "run slow blocking fn on a threadpool"
   [f & args]
   #?(:clj (->> (m/ap (m/? (m/via m/cpu (time (apply f args)))))
                (m/reductions {} (Failure. (Pending.))))))
@@ -28,7 +29,7 @@
 (p/defn HomeScreen [params]
   (c/DataViewer.
     "Last Transactions"
-    ~@(new (wrap (partial q/last-transactions params)))
+    ~@(new (wrap q/last-transactions params))
     {:db/id        ::e-details
      :db/txInstant ::tx-overview}
     Link)

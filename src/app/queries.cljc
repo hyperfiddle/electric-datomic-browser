@@ -1,5 +1,6 @@
 (ns app.queries
-  (:require [datomic.client.api :as d]))
+  (:require [datomic.client.api :as d])
+  #?(:cljs (:require-macros app.queries)))
 
 ; Observation: when I change something here, the app doesn't get reloaded
 
