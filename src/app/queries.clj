@@ -1,19 +1,52 @@
-(ns app.queries)
+(ns app.queries
+  (:require [datomic.client.api :as d]))
+
+; Observation: when I change something here, the app doesn't get reloaded
+
+(defn conn []
+  (-> (d/client {:server-type :dev-local
+                 :system      "datomic-samples"})
+      (d/connect {:db-name "mbrainz-subset"})))
+
+(defn db []
+  (-> (conn)
+      (d/db)))
 
 (defn last-transactions []
-  [{:db/id 1 :something "1"}
-   {:db/id 2}
-   {:db/id 3}
-   {:db/id 4}])
+  (->> (d/q '[:find (pull ?tx [*])
+              :where [?tx :db/txInstant]] (db))
+       (map first)))
+
+(comment
+  (last-transactions))
+
+(defn prepare-attributes [q-result]
+  (->> q-result
+       (map first)
+       (map #(update % :db/valueType :db/ident))
+       (map #(update % :db/cardinality :db/ident))
+       (map #(update % :db/unique :db/ident))))
 
 (defn identifying-attributes []
-  [{:db/id 1 :something "1"}
-   {:db/id 2}
-   {:db/id 3}
-   {:db/id 4}])
+  (prepare-attributes
+    (d/q '[:find (pull ?e [*])
+           :where
+           [?e :db/valueType _]
+           [?e :db/cardinality _]
+           [?e :db/unique :db.unique/identity]]
+         (db))))
+
+(comment
+  (identifying-attributes))
 
 (defn normal-attributes []
-  [{:db/id 1 :something "1"}
-   {:db/id 2}
-   {:db/id 3}
-   {:db/id 4}])
+  (prepare-attributes
+    (d/q '[:find (pull ?e [*])
+           :where
+           [?e :db/valueType _]
+           [?e :db/cardinality _]
+           (not [?e :db/unique :db.unique/identity])]
+         (db))))
+
+(comment
+  (normal-attributes))
