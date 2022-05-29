@@ -15,7 +15,10 @@
   #?(:clj (->> (m/ap (m/? (m/via m/cpu (time (apply f args)))))
                (m/reductions {} (Failure. (Pending.))))))
 
-(def initial-nav-state {:route ::home :params 5})
+(def max-last-tx-count 5)
+(def max-display-size 150)
+
+(def initial-nav-state {:route ::home :params max-last-tx-count})
 (def !nav-state #?(:cljs (atom initial-nav-state)))
 (p/def nav-state (p/watch !nav-state))
 
@@ -35,14 +38,12 @@
   (c/DataViewer.
     "Identifying Attributes"
     ~@(new (wrap q/identifying-attributes))
-    {:db/id    ::e-details
-     :db/ident ::a-overview}
+    {:db/id ::a-overview}
     Link)
   (c/DataViewer.
     "Normal Attributes"
     ~@(new (wrap q/normal-attributes))
-    {:db/id    ::e-details
-     :db/ident ::a-overview}
+    {:db/id ::a-overview}
     Link))
 
 (p/defn EntityDetailsScreen [eid]
@@ -57,16 +58,21 @@
   (Link. "Home" initial-nav-state)
   (c/DataViewer.
     (str "Transaction Overview: " txid)
-    ~@(new (wrap (partial q/tx-overview txid)))
+    ~@(new (wrap (partial q/tx-overview txid max-display-size)))
     {:e     ::e-details
      :a     ::a-overview
      :v-ref ::e-details}
     Link))
 
-(p/defn AttributeOverviewScreen [params]
+(p/defn AttributeOverviewScreen [aid]
   (Link. "Home" initial-nav-state)
-  (dom/h1 (dom/text "Attribute Overview"))
-  (dom/p (dom/text params)))
+  (c/DataViewer.
+    (str "Attribute Overview: " aid)
+    ~@(new (wrap (partial q/a-overview aid max-display-size)))
+    {:e     ::e-details
+     :v-ref ::e-details
+     :t     ::tx-overview}
+    Link))
 
 (p/defn App []
   (dom/div
