@@ -29,7 +29,7 @@
 (p/defn HomeScreen [params]
   (c/DataViewer.
     "Last Transactions"
-    ~@(new (wrap q/last-transactions params))
+    ~@(new (wrap (partial q/last-transactions params)))
     {:db/id ::tx-overview}
     Link)
   (c/DataViewer.
@@ -49,7 +49,7 @@
   (Link. "Home" {:route ::home :params 10})
   (c/DataViewer.
     (str "Entity Details: " eid)
-    ~@(new (wrap q/entity-details eid))
+    ~@(new (wrap (partial q/entity-details eid)))
     {}
     Link))
 
@@ -57,7 +57,7 @@
   (Link. "Home" {:route ::home :params 10})
   (c/DataViewer.
     (str "Transaction Overview: " txid)
-    ~@(new (wrap q/tx-overview txid))
+    ~@(new (wrap (partial q/tx-overview txid)))
     {:e     ::e-details
      :a     ::a-overview
      :v-ref ::e-details}
@@ -74,10 +74,7 @@
       ::home (HomeScreen. (:params nav-state))
       ::e-details (EntityDetailsScreen. (:params nav-state))
       ::tx-overview (TransactionOverviewScreen. (:params nav-state))
-      ::a-overview (AttributeOverviewScreen. (:params nav-state)))
-
-    (c/TimerTest.)
-    (c/ClickMeTest.)))
+      ::a-overview (AttributeOverviewScreen. (:params nav-state)))))
 
 (def app
   #?(:cljs
