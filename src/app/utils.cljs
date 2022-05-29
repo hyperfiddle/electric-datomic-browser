@@ -13,5 +13,5 @@
                           :a "1"
                           :v-ref "2"
                           :v-scalar "3"
-                          :t "4"
+                          :tx "4"
                           (str (namespace v) "/" (name v)))))))

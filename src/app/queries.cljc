@@ -109,11 +109,12 @@
     (->> tx-datoms
          (sort-by #(nth % 0))
          (take n)
-         (map (fn [[e a v]]
+         (map (fn [[e a v t]]
                 {:e        (get id->ident e e)
                  :a        (get id->ident a a)
                  :v-ref    (when (ref-attr? a) (get id->ident v v))
-                 :v-scalar (when (not (ref-attr? a)) v)})))))
+                 :v-scalar (when (not (ref-attr? a)) v)
+                 :tx        t})))))
 
 (comment
   (time (tx-overview 13194139534022 200)))
@@ -133,7 +134,7 @@
                 {:e                              (get id->ident e e)
                  :a                              (get id->ident a a)
                  (if ref-attr? :v-ref :v-scalar) (if ref-attr? (get id->ident v v) v)
-                 :t                              t})))))
+                 :tx                              t})))))
 
 (comment
   (time (a-overview 10 200))
