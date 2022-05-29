@@ -15,8 +15,8 @@
   #?(:clj (->> (m/ap (m/? (m/via m/cpu (time (apply f args)))))
                (m/reductions {} (Failure. (Pending.))))))
 
-(def !nav-state #?(:cljs (atom {:route  ::home
-                                :params 5})))
+(def initial-nav-state {:route ::home :params 5})
+(def !nav-state #?(:cljs (atom initial-nav-state)))
 (p/def nav-state (p/watch !nav-state))
 
 (p/defn Link [label nav-data]
@@ -46,7 +46,7 @@
     Link))
 
 (p/defn EntityDetailsScreen [eid]
-  (Link. "Home" {:route ::home :params 10})
+  (Link. "Home" initial-nav-state)
   (c/DataViewer.
     (str "Entity Details: " eid)
     ~@(new (wrap (partial q/entity-details eid)))
@@ -54,7 +54,7 @@
     Link))
 
 (p/defn TransactionOverviewScreen [txid]
-  (Link. "Home" {:route ::home :params 10})
+  (Link. "Home" initial-nav-state)
   (c/DataViewer.
     (str "Transaction Overview: " txid)
     ~@(new (wrap (partial q/tx-overview txid)))
@@ -64,17 +64,18 @@
     Link))
 
 (p/defn AttributeOverviewScreen [params]
-  (Link. "Home" {:route ::home :params 10})
+  (Link. "Home" initial-nav-state)
   (dom/h1 (dom/text "Attribute Overview"))
   (dom/p (dom/text params)))
 
 (p/defn App []
   (dom/div
-    (condp = (:route nav-state)
-      ::home (HomeScreen. (:params nav-state))
-      ::e-details (EntityDetailsScreen. (:params nav-state))
-      ::tx-overview (TransactionOverviewScreen. (:params nav-state))
-      ::a-overview (AttributeOverviewScreen. (:params nav-state)))))
+    (let [{:keys [route params]} nav-state]
+      (condp = route
+        ::home (HomeScreen. params)
+        ::e-details (EntityDetailsScreen. params)
+        ::tx-overview (TransactionOverviewScreen. params)
+        ::a-overview (AttributeOverviewScreen. params)))))
 
 (def app
   #?(:cljs
