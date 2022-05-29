@@ -26,7 +26,7 @@
           (dom/tr
             (dom/for [k ks]
               (dom/td
-                (if (contains? key-routes k)
+                (if (and (contains? key-routes k) (m k))
                   (Link. (m k) {:route  (key-routes k)
                                 :params (m k)})
                   (dom/text (m k)))))))))))

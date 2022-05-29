@@ -65,3 +65,35 @@
 
 (comment
   (entity-details 1))
+
+(defn tx-overview [tx]
+  (let [tx-datoms (-> (conn)
+                      (d/tx-range {:start tx
+                                   :end   (inc tx)})
+                      (first)
+                      (:data))
+        ref-attr? (->> (db)
+                       (d/q '[:find ?e :where [?e :db/valueType :db.type/ref]])
+                       (map first)
+                       (set))
+        tx-id?    (set (concat (map #(nth % 0) tx-datoms)
+                               (map #(nth % 1) tx-datoms)
+                               (->> tx-datoms
+                                    (filter #(ref-attr? (nth % 1)))
+                                    (map #(nth % 2)))))
+        id->ident (into {} (d/q '[:find ?e ?v
+                                  :in $ ?tx-id?
+                                  :where
+                                  [?e :db/ident ?v]
+                                  [(contains? ?tx-id? ?e)]]
+                                (db)
+                                tx-id?))]
+    (->> tx-datoms
+         (map (fn [[e a v]]
+                (-> {:e        (get id->ident e e)
+                     :a        (get id->ident a a)
+                     :v-ref    (when (ref-attr? a) (get id->ident v v))
+                     :v-scalar (when (not (ref-attr? a)) v)}))))))
+
+(comment
+  (time (tx-overview 13194139534022)))

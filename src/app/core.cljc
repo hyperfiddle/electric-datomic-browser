@@ -30,8 +30,7 @@
   (c/DataViewer.
     "Last Transactions"
     ~@(new (wrap q/last-transactions params))
-    {:db/id        ::e-details
-     :db/txInstant ::tx-overview}
+    {:db/id ::tx-overview}
     Link)
   (c/DataViewer.
     "Identifying Attributes"
@@ -54,10 +53,15 @@
     {}
     Link))
 
-(p/defn TransactionOverviewScreen [params]
+(p/defn TransactionOverviewScreen [txid]
   (Link. "Home" {:route ::home :params 10})
-  (dom/h1 (dom/text (str "Transaction Overview")))
-  (dom/p (dom/text params)))
+  (c/DataViewer.
+    (str "Transaction Overview: " txid)
+    ~@(new (wrap q/tx-overview txid))
+    {:e     ::e-details
+     :a     ::a-overview
+     :v-ref ::e-details}
+    Link))
 
 (p/defn AttributeOverviewScreen [params]
   (Link. "Home" {:route ::home :params 10})
