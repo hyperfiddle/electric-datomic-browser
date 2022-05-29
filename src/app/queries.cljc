@@ -13,7 +13,7 @@
   (-> (conn)
       (d/db)))
 
-(defn last-transactions [n]
+(defn transactions [n]
   (->> (d/q '[:find (pull ?tx [*])
               :where [?tx :db/txInstant]] (db))
        (map first)
@@ -22,7 +22,7 @@
        (take n)))
 
 (comment
-  (last-transactions 10))
+  (transactions 10))
 
 (defn process-pull [q-result]
   (->> q-result
@@ -36,29 +36,18 @@
                     (and (map? v) (contains? v :db/id)) (:db/id v)
                     :else v)))))))
 
-(defn identifying-attributes []
+(defn attributes [attrs]
   (process-pull
-    (d/q '[:find (pull ?e [*])
+    (d/q '[:find (pull ?e pattern)
+           :in $ pattern
            :where
            [?e :db/valueType _]
-           [?e :db/cardinality _]
-           [?e :db/unique :db.unique/identity]]
-         (db))))
+           [?e :db/cardinality _]]
+         (db)
+         attrs)))
 
 (comment
-  (identifying-attributes))
-
-(defn normal-attributes []
-  (process-pull
-    (d/q '[:find (pull ?e [*])
-           :where
-           [?e :db/valueType _]
-           [?e :db/cardinality _]
-           (not [?e :db/unique :db.unique/identity])]
-         (db))))
-
-(comment
-  (normal-attributes))
+  (attributes [:db/id :db/ident :db/cardinality :db/unique :db/fulltext :db/isComponent :db/tupleType :db/tupleTypes :db/tupleAttrs :db/valueType :db/doc]))
 
 (defn ident->id [db ident]
   (-> (d/datoms db {:index :avet :components [:db/ident ident]})
@@ -114,7 +103,7 @@
                  :a        (get id->ident a a)
                  :v-ref    (when (ref-attr? a) (get id->ident v v))
                  :v-scalar (when (not (ref-attr? a)) v)
-                 :tx        t})))))
+                 :tx       t})))))
 
 (comment
   (time (tx-overview 13194139534022 200)))
@@ -134,7 +123,7 @@
                 {:e                              (get id->ident e e)
                  :a                              (get id->ident a a)
                  (if ref-attr? :v-ref :v-scalar) (if ref-attr? (get id->ident v v) v)
-                 :tx                              t})))))
+                 :tx                             t})))))
 
 (comment
   (time (a-overview 10 200))

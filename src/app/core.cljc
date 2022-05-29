@@ -15,10 +15,11 @@
   #?(:clj (->> (m/ap (m/? (m/via m/cpu (time (apply f args)))))
                (m/reductions {} (Failure. (Pending.))))))
 
-(def max-last-tx-count 5)
-(def max-display-size 150)
+(def tx-count 5)
+(def data-rows 100)
 
-(def initial-nav-state {:route ::home :params max-last-tx-count})
+(def initial-nav-state {:route ::home :params tx-count})
+
 (def !nav-state #?(:cljs (atom initial-nav-state)))
 (p/def nav-state (p/watch !nav-state))
 
@@ -38,28 +39,13 @@
     (p/fn [_]
       (reset! !nav-state nav-data))))
 
-(defn all-keys [ms]
-  (->> ms
-       (reduce (fn [s v] (set/union s (set (keys v)))) #{})
-       ; hacky column sorting
-       (sort-by (fn [v] (condp = v
-                          :db/id "0"
-                          :db/ident "1"
-                          :db/doc "zzz"
-                          :e "0"
-                          :a "1"
-                          :v-ref "2"
-                          :v-scalar "3"
-                          :tx "4"
-                          (str (namespace v) "/" (name v)))))))
-
-(p/defn DataViewer [title maps key-routes Link]
-  (let [ks (all-keys maps)]
+(p/defn DataViewer [title keys maps key-routes]
+  (let [ks keys]
     (dom/h1 (dom/text title))
     (dom/table
       (dom/thead
         (dom/for [k ks]
-          (dom/td (dom/style {"min-width" "5em"}) (dom/text k))))
+          (dom/td (dom/text k))))
       (dom/tbody
         (dom/for [m maps]
           (dom/tr
@@ -70,54 +56,51 @@
                                 :params (m k)})
                   (dom/text (m k)))))))))))
 
-(p/defn HomeScreen [params]
+(p/defn HomeScreen [tx-count]
   (DataViewer.
-    "Last Transactions"
-    ~@(new (wrap (partial q/last-transactions params)))
-    {:db/id ::tx-overview}
-    Link)
-  (DataViewer.
-    "Identifying Attributes"
-    ~@(new (wrap q/identifying-attributes))
-    {:db/id ::a-overview}
-    Link)
-  (DataViewer.
-    "Normal Attributes"
-    ~@(new (wrap q/normal-attributes))
-    {:db/id ::a-overview}
-    Link))
+    "Transactions"
+    [:db/id :db/txInstant]
+    ~@(new (wrap q/transactions tx-count))
+    {:db/id ::tx-overview})
+  (let [attrs [:db/id :db/ident :db/cardinality :db/unique :db/fulltext :db/isComponent
+               :db/tupleType :db/tupleTypes :db/tupleAttrs :db/valueType :db/doc]]
+    (DataViewer.
+      "Attributes"
+      attrs
+      ~@(new (wrap q/attributes attrs))
+      {:db/id ::a-overview}
+      Link)))
 
 (p/defn EntityDetailsScreen [eid]
-  (Link. "Home" initial-nav-state)
   (DataViewer.
     (str "Entity Details: " eid)
-    ~@(new (wrap (partial q/entity-details eid)))
-    {}
-    Link))
+    [:db/id]
+    ~@(new (wrap q/entity-details eid))
+    {}))
 
 (p/defn TransactionOverviewScreen [txid]
-  (Link. "Home" initial-nav-state)
   (DataViewer.
     (str "Transaction Overview: " txid)
-    ~@(new (wrap (partial q/tx-overview txid max-display-size)))
+    [:e :a :v-ref :v-scalar :tx]
+    ~@(new (wrap q/tx-overview txid data-rows))
     {:e     ::e-details
      :a     ::a-overview
-     :v-ref ::e-details}
-    Link))
+     :v-ref ::e-details}))
 
 (p/defn AttributeOverviewScreen [aid]
-  (Link. "Home" initial-nav-state)
   (DataViewer.
     (str "Attribute Overview: " aid)
-    ~@(new (wrap (partial q/a-overview aid max-display-size)))
+    [:e :a :v-ref :v-scalar :tx]
+    ~@(new (wrap q/a-overview aid data-rows))
     {:e     ::e-details
      :v-ref ::e-details
-     :tx    ::tx-overview}
-    Link))
+     :tx    ::tx-overview}))
 
 (p/defn App []
-  (dom/div
-    (let [{:keys [route params]} nav-state]
+  (let [{:keys [route params]} nav-state]
+    (dom/div
+      (when (not (= route ::home))
+        (Link. "Home" initial-nav-state))
       (condp = route
         ::home (HomeScreen. params)
         ::e-details (EntityDetailsScreen. params)
