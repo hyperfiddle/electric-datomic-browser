@@ -71,7 +71,7 @@
     ~@(new (wrap (partial q/a-overview aid max-display-size)))
     {:e     ::e-details
      :v-ref ::e-details
-     :tx     ::tx-overview}
+     :tx    ::tx-overview}
     Link))
 
 (p/defn App []
