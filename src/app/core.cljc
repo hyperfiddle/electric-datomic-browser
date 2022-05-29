@@ -30,8 +30,8 @@
       :else v)
     v))
 
-(def !nav-state #?(:cljs (atom nav-home)))
-(p/def nav-state (p/watch !nav-state))
+(def !history #?(:cljs (atom (list nav-home))))
+(p/def history (p/watch !history))
 
 (def tx-attrs [:db/id :db/txInstant])
 (def a-attrs [:db/id :db/ident :db/cardinality :db/unique :db/fulltext :db/isComponent
@@ -52,9 +52,16 @@
 (p/defn Link [label nav-data]
   (Button.
     label
-    nav-state
+    history
     (p/fn [_]
-      (reset! !nav-state nav-data))))
+      (swap! !history conj nav-data))))
+
+(p/defn BackButton []
+  (Button.
+    "Back"
+    history
+    (p/fn [_]
+      (swap! !history rest))))
 
 (p/defn Cell [v]
   (dom/td
@@ -193,10 +200,12 @@
 
 
 (p/defn App []
-  (let [{:keys [route param]} nav-state]
+  (let [{:keys [route param]} (first history)]
     (dom/div
       (when (not (= route :home))
         (Link. "Home" nav-home))
+      (when (> (count history) 1)
+        (BackButton.))
       (condp = route
         :home (HomeScreen.)
         :e-details (EntityDetailsScreen. param)
