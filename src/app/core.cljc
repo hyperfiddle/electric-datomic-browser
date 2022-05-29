@@ -14,10 +14,11 @@
   #?(:clj (->> (m/ap (m/? (m/via m/cpu (time (apply f args)))))
                (m/reductions {} (Failure. (Pending.))))))
 
-(def tx-count 5)
+(def tx-count 10)
+(def as-count 20)
 (def data-rows 100)
 
-(def nav-home {:route :home :param tx-count})
+(def nav-home {:route :home})
 (defn nav-tx-overview [txid] {:route :tx-overview :param txid})
 (defn nav-a-overview [aid] {:route :a-overview :param aid})
 (defn nav-e-details [eid] {:route :e-details :param eid})
@@ -103,7 +104,7 @@
                (map #(update-vals % possibly-nav-ref))
                (take n))))
 
-(p/defn HomeScreen [tx-count]
+(p/defn HomeScreen []
   (DataViewer.
     "Transactions"
     tx-attrs
@@ -111,32 +112,25 @@
   (DataViewer.
     "Attributes"
     a-attrs
-    ~@(new (wrap attributes 20))))
+    ~@(new (wrap attributes as-count))))
 
-(defn ref-attr-set [db]
-  #?(:clj (->> db
-               (d/q '[:find ?e :where [?e :db/valueType :db.type/ref]])
-               (map first)
-               (set))))
 
-(defn id->ident-map [db datoms]
-  #?(:clj (let [ref-attr?  (ref-attr-set db)
+(defn resolve-datoms [db datoms n]
+  #?(:clj (let [ref-attr?  (->> (d/q '[:find ?e :where [?e :db/valueType :db.type/ref]] db)
+                                (map first)
+                                (set))
                 datoms-id? (set (concat (map #(nth % 0) datoms)
                                         (map #(nth % 1) datoms)
                                         (->> datoms
                                              (filter #(ref-attr? (nth % 1)))
-                                             (map #(nth % 2)))))]
-            (into {} (d/q '[:find ?e ?v
-                            :in $ ?datoms-id?
-                            :where
-                            [?e :db/ident ?v]
-                            [(contains? ?datoms-id? ?e)]]
-                          db
-                          datoms-id?)))))
-
-(defn resolve-datoms [db datoms n]
-  #?(:clj (let [ref-attr? (ref-attr-set db)
-                id->ident (id->ident-map db datoms)]
+                                             (map #(nth % 2)))))
+                id->ident  (into {} (d/q '[:find ?e ?v
+                                           :in $ ?datoms-id?
+                                           :where
+                                           [?e :db/ident ?v]
+                                           [(contains? ?datoms-id? ?e)]]
+                                         db
+                                         datoms-id?))]
             (->> datoms
                  (take n)
                  (map (fn [[e a v t]]
@@ -146,6 +140,7 @@
                                (possibly-nav-ref {:db/id v :db/ident (get id->ident v v)})
                                v)
                          :tx (nav-tx-overview t)}))))))
+
 
 (defn entity-details [eid-or-eident n]
   #?(:clj (let [db     (d/db conn)
@@ -163,6 +158,7 @@
     [:e :a :v :tx]
     ~@(new (wrap entity-details eid data-rows))))
 
+
 (defn tx-overview [txid n]
   #?(:clj (let [db        (d/db conn)
                 tx-datoms (:data (first (d/tx-range conn {:start txid
@@ -177,6 +173,7 @@
     (str "Transaction Overview: " txid)
     [:e :a :v :tx]
     ~@(new (wrap tx-overview txid data-rows))))
+
 
 (defn a-overview [aid-or-ident n]
   #?(:clj (let [db       (d/db conn)
@@ -194,13 +191,14 @@
     [:e :a :v :tx]
     ~@(new (wrap a-overview aid data-rows))))
 
+
 (p/defn App []
   (let [{:keys [route param]} nav-state]
     (dom/div
       (when (not (= route :home))
         (Link. "Home" nav-home))
       (condp = route
-        :home (HomeScreen. param)
+        :home (HomeScreen.)
         :e-details (EntityDetailsScreen. param)
         :tx-overview (TransactionOverviewScreen. param)
         :a-overview (AttributeOverviewScreen. param)))))
