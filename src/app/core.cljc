@@ -4,53 +4,9 @@
             [hyperfiddle.photon :as p]
             [hyperfiddle.photon-dom :as dom]
             [hyperfiddle.zero :as z]
-            [missionary.core :as m]
-            [clojure.core.async :as a])
-  (:import (hyperfiddle.photon Pending Failure)
-           (missionary Cancelled))
+            [missionary.core :as m])
+  (:import (hyperfiddle.photon Pending))
   #?(:cljs (:require-macros app.core)))                     ; forces shadow hot reload to also reload JVM at the same time
-
-;; TODO chan-read and chan->flow should probably be part of photon or related library.
-(defn chan-read
-  "Return a task taking a value from `chan`. Retrun nil if chan is closed. Does
-   not close chan, and stop reading from it when cancelled."
-  [chan]
-  (fn [success failure] ; a task is a 2-args function, success and failure are callbacks.
-    (let [cancel-chan (a/chan)] ; we will put a value on this chan to cancel reading from `chan`
-      (a/go (let [[v port] (a/alts! [chan cancel-chan])] ; race between two chans
-              (if (= port cancel-chan) ; if the winning chan is the cancelation one, then task has been cancelled
-                (failure (Cancelled.)) ; task has been cancelled, must produce a failure state
-                (success v) ; complete task with value from chan
-                )))
-      ;; if this task is cancelled by its parent process, close the cancel-chan
-      ;; which will make cancel-chan produce `nil` and cause cancellation of read on `chan`.
-      #(a/close! cancel-chan))))
-
-(defn chan->flow
-  "Produces a discreet flow from a core.async `channel`"
-  [channel]
-  (m/ap ; returns a discreet flow
-   (loop []
-     (if-some [x (m/? (chan-read channel))] ; read one value from `channel`, waiting until `channel` produces it
-        ;; We succesfully read a non-nil value, we use `m/amb` with two
-        ;; branches. m/amb will fork the current process (ap) and do two things
-        ;; sequencially, in two branches:
-        ;; - return x, meaning `loop` ends and return x, ap will produce x
-        ;; - recur to read the next value from chan
-       (m/amb x (recur))
-        ;; `channel` producing `nil` means it's been closed. We want to
-        ;; terminate this flow without producing any value (not even nil), we
-        ;; use (m/amb) which produces nothing and terminates immediately. The
-        ;; parent m/ap block has nothing to produce anymore and will also
-        ;; terminate.
-       (m/amb)))))
-
-#?(:clj
-   (defn query
-     "Return a task running a datomic query asynchronously, and completing
-     when all streamed results have been collected into a vector."
-     [query & args]
-     (m/reduce into [] (chan->flow (d/q {:query query, :args (vec args)})))))
 
 (def tx-count 10)
 (def as-count 20)
@@ -139,6 +95,13 @@
               (dom/tr ; client
                 (p/for [k# ~keys]
                   (Cell. (m# k#)))))))))))
+
+#?(:clj
+   (defn query
+     "Return a task running a datomic query asynchronously, and completing
+     when all streamed results have been collected into a vector."
+     [query & args]
+     (m/reduce into [] (p/chan->flow (d/q {:query query, :args (vec args)})))))
 
 (defn transactions [n p]
   ;; We produce a flow which will run a query, transform its result, emit it and terminate.
@@ -229,7 +192,7 @@
      (->> (m/ap (let [db     (d/db conn)
                       datoms (m/? (->> (d/datoms db {:index      :eavt
                                                      :components [eid-or-eident]})
-                                       (chan->flow)
+                                       (p/chan->flow)
                                        (m/reduce into [])))]
                   (m/? (resolve-datoms db datoms n p))))
           (m/reductions {} nil))))
@@ -250,7 +213,7 @@
 (defn tx-overview [txid n p]
   #?(:clj
      (->> (m/ap (let [tx-datoms (->> (d/tx-range conn {:start txid, :end (inc txid)})
-                                     (chan->flow)
+                                     (p/chan->flow)
                                      (m/eduction (take 1)) ; flow will terminate after 1 tx is received
                                      (m/?>) ; park until flow produces a value
                                      (:data))]
@@ -273,7 +236,7 @@
   #?(:clj (->> (m/ap (let [db       (d/db conn)
                            a-datoms (m/? (->> (d/datoms db {:index      :aevt
                                                             :components [aid-or-ident]})
-                                              (chan->flow)
+                                              (p/chan->flow)
                                               (m/reduce into [])))]
                        (m/? (resolve-datoms db a-datoms n p))))
                (m/reductions {} nil) ; UI need an initial value to display until query produces its first result
