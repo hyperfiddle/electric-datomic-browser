@@ -40,7 +40,7 @@
   (let [event (dom/button
                 (dom/text label)
                 (dom/attribute "type" "button")
-                (->> (dom/events dom/node "click")
+                (->> (dom/events dom/parent "click")
                      (z/impulse watch)))]
     (when event
       (F. event))))
@@ -276,7 +276,7 @@
   #?(:cljs
      (p/client
        (p/main
-         (binding [dom/node (dom/by-id "root")] ; render App under #root
+         (binding [dom/parent (dom/by-id "root")] ; render App under #root
            (try
              (App.)
              (catch Pending _
