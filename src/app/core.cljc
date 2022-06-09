@@ -10,6 +10,7 @@
            (missionary Cancelled))
   #?(:cljs (:require-macros app.core)))                     ; forces shadow hot reload to also reload JVM at the same time
 
+;; TODO chan-read and chan->flow should probably be part of photon or related library.
 (defn chan-read
   "Return a task taking a value from `chan`. Retrun nil if chan is closed. Does
    not close chan, and stop reading from it when cancelled."
@@ -55,7 +56,7 @@
 (def as-count 20)
 (def data-rows 100)
 
-(def nav-home {:route :home :page 0})
+(def nav-home {:route :home})
 (defn nav-tx-overview [txid] {:route :tx-overview :param txid})
 (defn nav-a-overview [aid] {:route :a-overview :param aid})
 (defn nav-e-details [eid] {:route :e-details :param eid})
@@ -69,6 +70,8 @@
 
 (def !history #?(:cljs (atom (list nav-home))))
 (p/def history (p/watch !history))
+(p/def initial-page 0)
+(p/def !page nil)
 
 (def tx-attrs [:db/id :db/txInstant])
 (def a-attrs [:db/id :db/ident :db/cardinality :db/unique :db/fulltext :db/isComponent
@@ -91,7 +94,7 @@
     label
     history
     (p/fn [_]
-      (swap! !history conj (assoc nav-data :page 0)))))
+      (swap! !history conj nav-data))))
 
 (p/defn BackButton []
   (Button.
@@ -100,15 +103,12 @@
     (p/fn [_]
       (swap! !history rest))))
 
-(defn paging [[f & r] amount]
-  (conj r (update f :page + amount)))
-
 (p/defn Pagination [label amount]
   (Button.
     label
     history
     (p/fn [_]
-      (swap! !history paging amount))))
+      (swap! !page + amount))))
 
 (p/defn Cell [v]
   (dom/td
@@ -124,7 +124,7 @@
   `(dom/div
     (dom/h1 (dom/text ~title))
     (Pagination. "previous page" -1)
-    (dom/text (str " page " (:page (first history)) " "))
+    (dom/text (str " page " (p/watch !page) " "))
     (Pagination. "next page" 1)
     (dom/table
       (dom/thead
@@ -184,15 +184,17 @@
                (m/reductions {} nil))))
 
 (comment
-  (time (m/? (m/reduce {} nil (a-overview 10 200 0))))
-  (time (m/? (m/reduce {} nil (a-overview :db/ident 200 0))))
+  (time (m/? (m/reduce {} nil (attributes 10 0))))
   )
 
-(p/defn HomeScreen [page]
+(p/defn HomeScreen []
   (dom/div
-   (data-viewer "Transactions" tx-attrs (new (transactions tx-count 0)))
-   (data-viewer "Attributes"   a-attrs  (new (attributes as-count 0)))))
-
+   (binding [!page (atom 0)]
+     (let [page (p/watch !page)]
+       (data-viewer "Transactions" tx-attrs (new (transactions tx-count page)))))
+   (binding [!page (atom 0)]
+     (let [page (p/watch !page)]
+       (data-viewer "Attributes" a-attrs (new (attributes as-count page)))))))
 
 (defn resolve-datoms [db datoms n p]
   #?(:clj (m/sp (let [ref-attr?  (->> (m/? (query '[:find ?e :where [?e :db/valueType :db.type/ref]] db))
@@ -236,11 +238,13 @@
   (m/? (m/reduce {} nil (entity-details 1 100 0)))
   (m/? (m/reduce {} nil (entity-details :db/ident 100 0))))
 
-(p/defn EntityDetailsScreen [eid page]
-  (data-viewer
-    (str "Entity Details: " eid)
-    [:e :a :v :tx]
-    (new (entity-details eid data-rows page)))) 
+(p/defn EntityDetailsScreen [eid]
+  (binding [!page (atom initial-page)]
+    (let [page (p/watch !page)]
+      (data-viewer
+       (str "Entity Details: " eid)
+       [:e :a :v :tx]
+       (new (entity-details eid data-rows page)))))) 
 
 
 (defn tx-overview [txid n p]
@@ -257,11 +261,13 @@
 (comment
   (time (m/? (m/reduce {} nil (tx-overview 13194139534022 200 0)))))
 
-(p/defn TransactionOverviewScreen [txid page]
-  (data-viewer
-    (str "Transaction Overview: " txid)
-    [:e :a :v :tx]
-    (new (tx-overview txid data-rows page))))
+(p/defn TransactionOverviewScreen [txid]
+  (binding [!page (atom initial-page)]
+    (let [page (p/watch !page)]
+      (data-viewer
+       (str "Transaction Overview: " txid)
+       [:e :a :v :tx]
+       (new (tx-overview txid data-rows page))))))
 
 (defn a-overview [aid-or-ident n p]
   #?(:clj (->> (m/ap (let [db       (d/db conn)
@@ -277,31 +283,31 @@
   (time (m/? (m/reduce {} nil (a-overview 10 200 0))))
   (time (m/? (m/reduce {} nil (a-overview :db/ident 200 0)))))
 
-(p/defn AttributeOverviewScreen [aid page]
-  (data-viewer
-    (str "Attribute Overview: " aid)
-    [:e :a :v :tx]
-    (new (a-overview aid data-rows page))))
-
+(p/defn AttributeOverviewScreen [aid]
+  (binding [!page (atom initial-page)]
+    (let [page (p/watch !page)]
+      (data-viewer
+       (str "Attribute Overview: " aid)
+       [:e :a :v :tx]
+       (new (a-overview aid data-rows page))))))
 
 (p/defn App []
-  (let [{:keys [route param page]} (first history)]
+  (let [{:keys [route param]} (first history)]
     (dom/div
       (when (not (= route :home))
         (Link. "Home" nav-home))
       (when (> (count history) 1)
         (BackButton.))
-     ;; `route`, `param` and `page` are bundled in the same map. Changing `page`
-     ;; or `param` would cause `route` to reflow too, even if it has the same
-     ;; value. Curent Photon conditionals will not deduplicate consecutive
-     ;; values and will cancel the current branch, then remount it. It would
-     ;; cause the app's page to unmount and remount. So we deduplicate route
-     ;; manually.
+     ;; `route` and `param` are bundled in the same map. Changing `param` would
+     ;; cause `route` to reflow too, even if it has the same value. Curent
+     ;; Photon conditionals will not deduplicate consecutive values and will
+     ;; cancel the current branch, then remount it. It would cause the app's
+     ;; page to unmount and remount. So we deduplicate route manually.
      (condp = (p/deduping route)
-        :home (HomeScreen. page)
-        :e-details (EntityDetailsScreen. param page)
-        :tx-overview (TransactionOverviewScreen. param page)
-        :a-overview (AttributeOverviewScreen. param page)))))
+        :home (HomeScreen.)
+        :e-details (EntityDetailsScreen. param)
+        :tx-overview (TransactionOverviewScreen. param)
+        :a-overview (AttributeOverviewScreen. param)))))
 
 (def app
   #?(:cljs
