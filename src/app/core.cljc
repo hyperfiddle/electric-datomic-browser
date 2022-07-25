@@ -3,9 +3,10 @@
             #?(:clj [datomic.client.api :as dsync])
             [hyperfiddle.photon :as p]
             [hyperfiddle.photon-dom :as dom]
-            [hyperfiddle.zero :as z]
-            [missionary.core :as m])
-  (:import (hyperfiddle.photon Pending))
+            [missionary.core :as m]
+            [hyperfiddle.photon-ui :as ui])
+  (:import (hyperfiddle.photon Pending)
+           (missionary Cancelled))
   #?(:cljs (:require-macros app.core)))                     ; forces shadow hot reload to also reload JVM at the same time
 
 (def tx-count 10)
@@ -36,35 +37,26 @@
                                      :system      "datomic-samples"})
                       (dsync/connect {:db-name "mbrainz-subset"}))))
 
-(p/defn Button [label watch F]
-  (let [event (dom/button
-                (dom/text label)
-                (dom/attribute "type" "button")
-                (->> (dom/events dom/parent "click")
-                     (z/impulse watch)))]
-    (when event
-      (F. event))))
+(p/defn Button [label F]
+  (ui/button {::ui/click-event (p/fn [event] (prn "local") (when event (F. event)) nil)}
+    (dom/text label)))
 
 (p/defn Link [label nav-data]
   (Button.
     label
-    history
     (p/fn [_]
       (swap! !history conj nav-data))))
 
 (p/defn BackButton []
   (Button.
     "Back"
-    history
     (p/fn [_]
       (swap! !history rest))))
 
 (p/defn Pagination [label amount]
-  (Button.
-    label
-    history
-    (p/fn [_]
-      (swap! !page + amount))))
+  (Button. label (p/fn [event]
+                   (when event
+                     (swap! !page + amount)))))
 
 (p/defn Cell [v]
   (dom/td
@@ -274,10 +266,8 @@
 
 (def app
   #?(:cljs
-     (p/client
-       (p/main
-         (binding [dom/parent (dom/by-id "root")] ; render App under #root
-           (try
-             (App.)
-             (catch Pending _
-               (prn "App is in pending state"))))))))
+     (p/boot (binding [dom/node (dom/by-id "root")] ; render App under #root
+              (try
+                (App.)
+                (catch Pending _
+                  (prn "App is in pending state")))))))

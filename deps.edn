@@ -9,4 +9,5 @@
            thheller/shadow-cljs           {:mvn/version "2.18.0"}}
  :aliases {:dev {:extra-deps {com.datomic/dev-local {:mvn/version "1.0.243"}}
                  :exec-fn    user/main
-                 :exec-args  {}}}}
+                 :exec-args  {}
+                 :jvm-opts   ["-XX:-OmitStackTraceInFastThrow"]}}}
