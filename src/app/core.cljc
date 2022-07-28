@@ -38,7 +38,7 @@
                       (dsync/connect {:db-name "mbrainz-subset"}))))
 
 (p/defn Button [label F]
-  (ui/button {::ui/click-event (p/fn [event] (prn "local") (when event (F. event)) nil)}
+  (ui/button {::ui/click-event (p/fn [event] (when event (F. event)) nil)}
     (dom/text label)))
 
 (p/defn Link [label nav-data]
