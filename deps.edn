@@ -3,7 +3,7 @@
            ch.qos.logback/logback-core    {:mvn/version "1.2.11"}
            com.datomic/client-api         {:mvn/version "1.0.58"}
            com.google.guava/guava         {:mvn/version "31.1-jre"} ; force guava to latest to fix shadow issue
-           com.hyperfiddle/photon         {:mvn/version "20220726"}
+           com.hyperfiddle/photon         {:mvn/version "20220728-093020"}
            hyperfiddle/rcf                {:git/url "https://github.com/hyperfiddle/rcf"
                                            :git/sha "e31fec8b334eb44900f7f8459c6e1faca73d4300"}
            org.clojure/clojure            {:mvn/version "1.11.1"}
