@@ -1,13 +1,13 @@
 (ns app.core
   (:require #?(:clj [datomic.client.api.async :as d])
-            #?(:clj [datomic.client.api :as dsync])
             [hyperfiddle.photon :as p]
             [hyperfiddle.photon-dom :as dom]
             [missionary.core :as m]
             [hyperfiddle.photon-ui :as ui])
-  (:import (hyperfiddle.photon Pending)
-           (missionary Cancelled))
   #?(:cljs (:require-macros app.core)))                     ; forces shadow hot reload to also reload JVM at the same time
+
+(p/def db)                                                  ; server
+(p/def conn)                                                ; server
 
 (def tx-count 10)
 (def as-count 20)
@@ -33,9 +33,6 @@
 (def tx-attrs [:db/id :db/txInstant])
 (def a-attrs [:db/id :db/ident :db/cardinality :db/unique :db/fulltext :db/isComponent
               :db/tupleType :db/tupleTypes :db/tupleAttrs :db/valueType :db/doc])
-(def conn #?(:clj (-> (dsync/client {:server-type :dev-local
-                                     :system      "datomic-samples"})
-                      (dsync/connect {:db-name "mbrainz-1968-1973"}))))
 
 (p/defn Button [label F]
   (ui/button {::ui/click-event (p/fn [event] (when event (F. event)) nil)}
@@ -101,7 +98,7 @@
                       '[:find (pull ?tx pattern)
                         :in $ pattern
                         :where [?tx :db/txInstant]]
-                      (d/db conn) tx-attrs)
+                      db tx-attrs)
                      (m/?) ; run it, wait for it to succeed and produce a result
                      ; transform result
                      (map first)
@@ -127,7 +124,7 @@
                                         :in $ pattern
                                         :where
                                         [?e :db/valueType _]]
-                                      (d/db conn)
+                                      db
                                       a-attrs))
                           (map first)
                           (sort-by :db/ident)
@@ -179,8 +176,8 @@
 
 
 (defn entity-details [eid-or-eident n p]
-  #?(:clj 
-     (->> (m/ap (let [db     (d/db conn)
+  #?(:clj
+     (->> (m/ap (let [db     db
                       datoms (m/? (->> (d/datoms db {:index      :eavt
                                                      :components [eid-or-eident]})
                                        (p/chan->flow)
@@ -201,14 +198,14 @@
        (new (entity-details eid data-rows page)))))) 
 
 
-(defn tx-overview [txid n p]
+(defn tx-overview [conn txid n p]
   #?(:clj
      (->> (m/ap (let [tx-datoms (->> (d/tx-range conn {:start txid, :end (inc txid)})
                                      (p/chan->flow)
                                      (m/eduction (take 1)) ; flow will terminate after 1 tx is received
                                      (m/?>) ; park until flow produces a value
                                      (:data))]
-                  (m/? (resolve-datoms (d/db conn) tx-datoms n p))))
+                  (m/? (resolve-datoms db tx-datoms n p))))
           (m/reductions {} nil) ; UI need an initial value to display until query produces its first result
           )))
 
@@ -221,10 +218,10 @@
       (data-viewer
        (str "Transaction Overview: " txid)
        [:e :a :v :tx]
-       (new (tx-overview txid data-rows page))))))
+       (new (tx-overview conn txid data-rows page))))))
 
 (defn a-overview [aid-or-ident n p]
-  #?(:clj (->> (m/ap (let [db       (d/db conn)
+  #?(:clj (->> (m/ap (let [db       db
                            a-datoms (m/? (->> (d/datoms db {:index      :aevt
                                                             :components [aid-or-ident]})
                                               (p/chan->flow)
@@ -262,11 +259,3 @@
         :e-details (EntityDetailsScreen. param)
         :tx-overview (TransactionOverviewScreen. param)
         :a-overview (AttributeOverviewScreen. param)))))
-
-(def app
-  #?(:cljs
-     (p/boot (binding [dom/node (dom/by-id "root")] ; render App under #root
-              (try
-                (App.)
-                (catch Pending _
-                  (prn "App is in pending state")))))))
