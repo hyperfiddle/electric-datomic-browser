@@ -4,9 +4,13 @@
 Go to https://docs.datomic.com/cloud/dev-local.html and follow instructions.
 
 ## Install mbrainz dataset
-1. Clone this repo: https://github.com/Datomic/mbrainz-importer
-2. `cd` into it
-3. create a file `manifest.edn` with this content:
+* mbrainz-subset: https://docs.datomic.com/cloud/dev-local.html#samples - extract zip into datomic storage dir, that's it
+* mbrainz-1968-1973: https://github.com/Datomic/mbrainz-importer - don't use this one, too big
+
+mbrainz-1968-1973 instructions (don't do this):
+3. Clone this repo: 
+4. `cd` into it
+5. create a file `manifest.edn` with this content:
 ```clojure
 {:client-cfg {:server-type :dev-local
               :system      "datomic-samples"}
