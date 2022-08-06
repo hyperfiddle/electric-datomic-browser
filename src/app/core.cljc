@@ -35,7 +35,7 @@
               :db/tupleType :db/tupleTypes :db/tupleAttrs :db/valueType :db/doc])
 (def conn #?(:clj (-> (dsync/client {:server-type :dev-local
                                      :system      "datomic-samples"})
-                      (dsync/connect {:db-name "mbrainz-subset"}))))
+                      (dsync/connect {:db-name "mbrainz-1968-1973"}))))
 
 (p/defn Button [label F]
   (ui/button {::ui/click-event (p/fn [event] (when event (F. event)) nil)}
