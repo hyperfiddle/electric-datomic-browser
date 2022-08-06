@@ -80,11 +80,10 @@
           (dom/td
             (dom/text k#))))
       (dom/tbody
-        ;; client
-        (unquote-splicing ; transfer point (aka ~@)
-          (p/for [m# ~maps] ; server
-            (unquote-splicing ; transfer point (ak ~@)
-              (dom/tr ; client
+        (p/server
+          (p/for [m# ~maps]
+            (p/client
+              (dom/tr
                 (p/for [k# ~keys]
                   (Cell. (m# k#)))))))))))
 
