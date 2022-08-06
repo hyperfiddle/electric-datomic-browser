@@ -17,7 +17,7 @@
   (shadow.cljs.devtools.server/start!)
   (shadow.cljs.devtools.api/watch :app)
   (def datomic-client (datomic.client.api/client {:server-type :dev-local :system "datomic-samples"}))
-  (def datomic-conn (datomic.client.api/connect datomic-client {:db-name "mbrainz-1968-1973"}))
+  (def datomic-conn (datomic.client.api/connect datomic-client {:db-name "mbrainz-subset"}))
   (def server (hyperfiddle.photon-jetty-server/start-server! photon-server-config))
   (comment (.stop server)))
 
