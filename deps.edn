@@ -12,4 +12,5 @@
  :aliases {:dev {:extra-deps {com.datomic/dev-local {:mvn/version "1.0.243"}}
                  :exec-fn    user/main
                  :exec-args  {}
-                 :jvm-opts   ["-XX:-OmitStackTraceInFastThrow"]}}}
+                 :jvm-opts   ["-XX:-OmitStackTraceInFastThrow"
+                              "-Xss2m"]}}}
