@@ -91,7 +91,7 @@
      [query & args]
      (m/reduce into [] (p/chan->flow (d/q {:query query, :args (vec args)})))))
 
-(defn transactions [n p]
+(defn transactions [db n p]
   ;; We produce a flow which will run a query, transform its result, emit it and terminate.
   #?(:clj (->> (m/ap ; return a discreet flow
                 (->> (query ; build a task running the query
@@ -117,9 +117,9 @@
                )))
 
 (comment
-  (m/? (m/reduce {} nil (transactions 5 0))))
+  (m/? (m/reduce {} nil (transactions(d/db user/datomic-conn) 5 0))))
 
-(defn attributes [n p]
+(defn attributes [db n p]
   #?(:clj (->> (m/ap (->> (m/? (query '[:find (pull ?e pattern)
                                         :in $ pattern
                                         :where
@@ -135,17 +135,17 @@
                (m/reductions {} nil))))
 
 (comment
-  (time (m/? (m/reduce {} nil (attributes 10 0))))
+  (time (m/? (m/reduce {} nil (attributes (d/db user/datomic-conn) 10 0))))
   )
 
 (p/defn HomeScreen []
   (dom/div
    (binding [!page (atom 0)]
      (let [page (p/watch !page)]
-       (data-viewer "Transactions" tx-attrs (new (transactions tx-count page)))))
+       (data-viewer "Transactions" tx-attrs (new (transactions db tx-count page)))))
    (binding [!page (atom 0)]
      (let [page (p/watch !page)]
-       (data-viewer "Attributes" a-attrs (new (attributes as-count page)))))))
+       (data-viewer "Attributes" a-attrs (new (attributes db as-count page)))))))
 
 (defn resolve-datoms [db datoms n p]
   #?(:clj (m/sp (let [ref-attr?  (->> (m/? (query '[:find ?e :where [?e :db/valueType :db.type/ref]] db))
@@ -175,10 +175,9 @@
                                :tx (nav-tx-overview t)})))))))
 
 
-(defn entity-details [eid-or-eident n p]
+(defn entity-details [db eid-or-eident n p]
   #?(:clj
-     (->> (m/ap (let [db     db
-                      datoms (m/? (->> (d/datoms db {:index      :eavt
+     (->> (m/ap (let [datoms (m/? (->> (d/datoms db {:index      :eavt
                                                      :components [eid-or-eident]})
                                        (p/chan->flow)
                                        (m/reduce into [])))]
@@ -186,8 +185,8 @@
           (m/reductions {} nil))))
 
 (comment
-  (m/? (m/reduce {} nil (entity-details 1 100 0)))
-  (m/? (m/reduce {} nil (entity-details :db/ident 100 0))))
+  (m/? (m/reduce {} nil (entity-details (d/db user/datomic-conn) 1 100 0)))
+  (m/? (m/reduce {} nil (entity-details (d/db user/datomic-conn) :db/ident 100 0))))
 
 (p/defn EntityDetailsScreen [eid]
   (binding [!page (atom initial-page)]
@@ -195,22 +194,22 @@
       (data-viewer
        (str "Entity Details: " eid)
        [:e :a :v :tx]
-       (new (entity-details eid data-rows page)))))) 
+       (new (entity-details db eid data-rows page))))))
 
 
-(defn tx-overview [conn txid n p]
+(defn tx-overview [conn db txid n p]
   #?(:clj
      (->> (m/ap (let [tx-datoms (->> (d/tx-range conn {:start txid, :end (inc txid)})
                                      (p/chan->flow)
                                      (m/eduction (take 1)) ; flow will terminate after 1 tx is received
-                                     (m/?>) ; park until flow produces a value
+                                     (m/?<) ; park until flow produces a value
                                      (:data))]
                   (m/? (resolve-datoms db tx-datoms n p))))
           (m/reductions {} nil) ; UI need an initial value to display until query produces its first result
           )))
 
 (comment
-  (time (m/? (m/reduce {} nil (tx-overview 13194139534022 200 0)))))
+  (time (m/? (m/reduce {} nil (tx-overview user/datomic-conn (d/db user/datomic-conn) 13194139534022 200 0)))))
 
 (p/defn TransactionOverviewScreen [txid]
   (binding [!page (atom initial-page)]
@@ -218,11 +217,10 @@
       (data-viewer
        (str "Transaction Overview: " txid)
        [:e :a :v :tx]
-       (new (tx-overview conn txid data-rows page))))))
+       (new (tx-overview conn db txid data-rows page))))))
 
-(defn a-overview [aid-or-ident n p]
-  #?(:clj (->> (m/ap (let [db       db
-                           a-datoms (m/? (->> (d/datoms db {:index      :aevt
+(defn a-overview [db aid-or-ident n p]
+  #?(:clj (->> (m/ap (let [a-datoms (m/? (->> (d/datoms db {:index      :aevt
                                                             :components [aid-or-ident]})
                                               (p/chan->flow)
                                               (m/reduce into [])))]
@@ -231,8 +229,8 @@
                )))
 
 (comment
-  (time (m/? (m/reduce {} nil (a-overview 10 200 0))))
-  (time (m/? (m/reduce {} nil (a-overview :db/ident 200 0)))))
+  (time (m/? (m/reduce {} nil (a-overview (d/db user/datomic-conn)  10 200 0))))
+  (time (m/? (m/reduce {} nil (a-overview (d/db user/datomic-conn) :db/ident 200 0)))))
 
 (p/defn AttributeOverviewScreen [aid]
   (binding [!page (atom initial-page)]
@@ -240,7 +238,7 @@
       (data-viewer
        (str "Attribute Overview: " aid)
        [:e :a :v :tx]
-       (new (a-overview aid data-rows page))))))
+       (new (a-overview db aid data-rows page))))))
 
 (p/defn App []
   (let [{:keys [route param]} (first history)]
