@@ -247,12 +247,7 @@
         (Link. "Home" nav-home))
       (when (> (count history) 1)
         (BackButton.))
-     ;; `route` and `param` are bundled in the same map. Changing `param` would
-     ;; cause `route` to reflow too, even if it has the same value. Curent
-     ;; Photon conditionals will not deduplicate consecutive values and will
-     ;; cancel the current branch, then remount it. It would cause the app's
-     ;; page to unmount and remount. So we deduplicate route manually.
-     (condp = (p/deduping route)
+     (condp = route
         :home (HomeScreen.)
         :e-details (EntityDetailsScreen. param)
         :tx-overview (TransactionOverviewScreen. param)
