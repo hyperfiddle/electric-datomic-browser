@@ -34,32 +34,14 @@
 (def a-attrs [:db/id :db/ident :db/cardinality :db/unique :db/fulltext :db/isComponent
               :db/tupleType :db/tupleTypes :db/tupleAttrs :db/valueType :db/doc])
 
-(p/defn Button [label F]
-  (ui/button {::ui/click-event (p/fn [event] (when event (F. event)) nil)}
-    (dom/text label)))
-
 (p/defn Link [label nav-data]
-  (Button.
-    label
-    (p/fn [_]
-      (swap! !history conj nav-data))))
-
-(p/defn BackButton []
-  (Button.
-    "Back"
-    (p/fn [_]
-      (swap! !history rest))))
-
-(p/defn Pagination [label amount]
-  (Button. label (p/fn [event]
-                   (when event
-                     (swap! !page + amount)))))
+  (ui/button {::ui/click-event (p/fn [_] (swap! !history conj nav-data))} label))
 
 (p/defn Cell [v]
   (dom/td
     (if (and (map? v) (contains? v :route) (contains? v :param))
       (Link. (:param v) v)
-      (dom/text v))))
+      (str v))))
 
 ;; data-viewer is implemented as macro until Photon supports lazy args binding,
 ;; at which point it would be a regular p/defn. The goal is for `maps` to be
@@ -67,15 +49,14 @@
 ;; transfers from server to client individually.
 (defmacro data-viewer [title keys maps]
   `(dom/div
-    (dom/h1 (dom/text ~title))
-    (Pagination. "previous page" -1)
-    (dom/text (str " page " (p/watch !page) " "))
-    (Pagination. "next page" 1)
+    (dom/h1 ~title)
+    (ui/button {::ui/click-event (p/fn [_] (swap! !page dec))} "previous page")
+    (str " page " (p/watch !page) " ")
+    (ui/button {::ui/click-event (p/fn [_] (swap! !page inc))} "next page")
     (dom/table
       (dom/thead
         (p/for [k# ~keys]
-          (dom/td
-            (dom/text k#))))
+          (dom/td k#)))
       (dom/tbody
         (p/server
           (p/for [m# ~maps]
@@ -246,7 +227,7 @@
       (when (not (= route :home))
         (Link. "Home" nav-home))
       (when (> (count history) 1)
-        (BackButton.))
+        (ui/button {::ui/click-event (p/fn [_] (swap! !history rest))} "Back"))
      (condp = route
         :home (HomeScreen.)
         :e-details (EntityDetailsScreen. param)
