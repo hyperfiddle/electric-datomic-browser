@@ -14,8 +14,8 @@
                          (binding [app.core/conn user/datomic-conn
                                    app.core/db (datomic.client.api.async/db user/datomic-conn)]
                            (p/client
-                             #_(app.core/App.)
-                             (dom/div (dom/text "hello world " (p/server (pr-str (type app.core/db)))))))))
+                             (app.core/App.)
+                             #_(dom/div (dom/text "hello world " (p/server (pr-str (type app.core/db)))))))))
                      (catch Pending _)))
                  #(js/console.log "Reactor success:" %)
                  #(js/console.error "Reactor failure:" %))))
