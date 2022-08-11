@@ -9,91 +9,70 @@
 
 (p/def db)                                                  ; server
 (p/def conn)                                                ; server
-
-(def tx-count 10)
-(def as-count 20)
-(def data-rows 100)
-
-(def nav-home {:route :home})
-
-(def !history #?(:cljs (atom (list nav-home))))
-(p/def history (p/watch !history))
+(p/def Navigate!)                                           ; client
+(p/def Navigate-back!)                                      ; client
+(p/def history)
+(def limit 100)
 (p/def initial-page 0)
 (p/def !page nil)
-
-(p/defn Link [label nav-data]
-  (ui/button {::ui/click-event (p/fn [_] (swap! !history conj nav-data))} label))
 
 (p/defn Cell [v]
   (dom/td
     (if (and (map? v) (contains? v :route) (contains? v :param))
-      (Link. (:param v) v)
+      (ui/button {::ui/click-event (p/fn [_] (Navigate!. v))} (:param v))
       (str v))))
 
-;; data-viewer is implemented as macro until Photon supports lazy args binding,
-;; at which point it would be a regular p/defn. The goal is for `maps` to be
-;; resolved on the server (so the query runs on the server) and rows
-;; transfers from server to client individually.
-(defmacro data-viewer [title keys maps]
-  `(dom/div
-    (dom/h1 ~title)
-    (ui/button {::ui/click-event (p/fn [_] (swap! !page dec))} "previous page")
-    (str " page " (p/watch !page) " ")
-    (ui/button {::ui/click-event (p/fn [_] (swap! !page inc))} "next page")
+(p/defn Data-viewer [cols Query-fn]
+  (let [!page (atom 0)
+        page (p/watch !page)
+        more? true]
     (dom/table
       (dom/thead
-        (p/for [k# ~keys]
-          (dom/td k#)))
+        (p/for [k cols]
+          (dom/td k)))
       (dom/tbody
         (p/server
-          (p/for [m# ~maps]
+          ; Query-fn is thunked to prevent over-eager transfer, see https://github.com/hyperfiddle/photon/issues/12
+          (p/for [m (Query-fn.)]                            ; are there more pages?
             (p/client
               (dom/tr
-                (p/for [k# ~keys]
-                  (Cell. (m# k#)))))))))))
+                (p/for [k cols]
+                  (Cell. (m k)))))))))
+    (dom/div
+      {::dom/class "controls"}
+      (ui/button {::ui/disabled    (= 0 page)
+                  ::ui/click-event (p/fn [_] (swap! !page dec))} "previous")
+      (str " page " page " ")
+      (ui/button {::ui/disabled    (not more?)
+                  ::ui/click-event (p/fn [_] (swap! !page inc))} "next"))))
 
 (p/defn HomeScreen []
-  (dom/div
-   (binding [!page (atom 0)]
-     (let [page (p/watch !page)]
-       (data-viewer "Transactions" tx-attrs (new (transactions db tx-count page)))))
-   (binding [!page (atom 0)]
-     (let [page (p/watch !page)]
-       (data-viewer "Attributes" a-attrs (new (attributes db as-count page)))))))
+  (dom/h1 "Transactions")
+  (Data-viewer. tx-attrs (p/fn [page] (p/server (new (transactions db 10 page)))))
+  (dom/h1 "Attributes")
+  (Data-viewer. a-attrs (p/fn [page] (p/server (new (attributes db 20 page))))))
 
 (p/defn EntityDetailsScreen [eid]
-  (binding [!page (atom initial-page)]
-    (let [page (p/watch !page)]
-      (data-viewer
-       (str "Entity Details: " eid)
-       [:e :a :v :tx]
-       (new (entity-details db eid data-rows page))))))
+  (dom/h1 (str "Entity Details: " eid))
+  (Data-viewer. [:e :a :v :tx] (p/fn [page] (p/server (new (entity-details db eid limit page))))))
 
 (p/defn TransactionOverviewScreen [txid]
-  (binding [!page (atom initial-page)]
-    (let [page (p/watch !page)]
-      (data-viewer
-       (str "Transaction Overview: " txid)
-       [:e :a :v :tx]
-       (new (tx-overview conn db txid data-rows page))))))
+  (dom/h1 (str "Transaction Overview: " txid))
+  (Data-viewer. [:e :a :v :tx] (p/fn [page] (p/server (new (tx-overview conn db txid limit page))))))
 
 (p/defn AttributeOverviewScreen [aid]
-  (binding [!page (atom initial-page)]
-    (let [page (p/watch !page)]
-      (data-viewer
-       (str "Attribute Overview: " aid)
-       [:e :a :v :tx]
-       (new (a-overview db aid data-rows page))))))
+  (dom/h1 (str "Attribute Overview: " aid))
+  (Data-viewer. [:e :a :v :tx] (p/fn [page] (p/server (new (a-overview db aid limit page))))))
 
 (p/defn App []
-  (let [{:keys [route param]} (first history)]
-    (dom/div
-      (when (not (= route :home))
-        (Link. "Home" nav-home))
-      (when (> (count history) 1)
-        (ui/button {::ui/click-event (p/fn [_] (swap! !history rest))} "Back"))
-     (condp = route
-        :home (HomeScreen.)
-        :e-details (EntityDetailsScreen. param)
-        :tx-overview (TransactionOverviewScreen. param)
-        :a-overview (AttributeOverviewScreen. param)))))
+  (let [{:keys [route x]} (first history)
+        route (or route :home)]
+    (ui/button {::ui/disabled    (= route :home)
+                ::ui/click-event (p/fn [_] (Navigate!. :home))} "Home")
+    (ui/button {::ui/disabled    (= (count history) 0)
+                ::ui/click-event (p/fn [_] (Navigate-back!.))} "Back")
+    (condp = route
+      :home (HomeScreen.)
+      :e-details (EntityDetailsScreen. x)
+      :tx-overview (TransactionOverviewScreen. x)
+      :a-overview (AttributeOverviewScreen. x))))

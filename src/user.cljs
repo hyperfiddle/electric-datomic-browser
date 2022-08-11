@@ -5,6 +5,7 @@
   (:import [hyperfiddle.photon Pending]))
 
 (defonce reactor nil)
+(defonce !history (atom ()))
 
 (defn ^:dev/after-load start! []
   (set! reactor ((p/boot
@@ -14,8 +15,11 @@
                          (binding [app.core/conn user/datomic-conn
                                    app.core/db (datomic.client.api.async/db user/datomic-conn)]
                            (p/client
-                             (app.core/App.)
-                             #_(dom/div (dom/text "hello world " (p/server (pr-str (type app.core/db)))))))))
+                             (binding [app.core/history (p/watch !history)
+                                       app.core/Navigate! (p/fn [route] (p/client (swap! !history conj route)))
+                                       app.core/Navigate-back! (p/fn [] (p/client (swap! !history rest)))]
+                               (app.core/App.)
+                               #_(dom/div (dom/text "hello world " (p/server (pr-str (type app.core/db))))))))))
                      (catch Pending _)))
                  #(js/console.log "Reactor success:" %)
                  #(js/console.error "Reactor failure:" %))))
