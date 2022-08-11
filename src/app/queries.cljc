@@ -12,10 +12,6 @@
   [query & args]
   #?(:clj (m/reduce into [] (p/chan->flow (d/q {:query query, :args (vec args)})))))
 
-(def tx-attrs [:db/id :db/txInstant])
-(def a-attrs [:db/id :db/ident :db/cardinality :db/unique :db/fulltext :db/isComponent
-              :db/tupleType :db/tupleTypes :db/tupleAttrs :db/valueType :db/doc])
-
 (defn nav-tx-overview [txid] {:route :tx-overview :param txid})
 (defn nav-a-overview [aid] {:route :a-overview :param aid})
 (defn nav-e-details [eid] {:route :e-details :param eid})
@@ -27,7 +23,7 @@
       :else v)
     v))
 
-(defn transactions [db limit page]
+(defn transactions [db pull-pattern limit page]
   ;; We produce a flow which will run a query, transform its result, emit it and terminate.
   #?(:clj
      (->> (m/ap                                             ; return a discrete flow
@@ -35,7 +31,7 @@
                    '[:find (pull ?tx pattern)
                      :in $ pattern
                      :where [?tx :db/txInstant]]
-                   db tx-attrs)
+                   db pull-pattern)
                  (m/?)                                      ; run it, wait for it to succeed and produce a result
                  ; transform result
                  (map first)
@@ -55,14 +51,13 @@
 (comment
   (m/? (m/reduce {} nil (transactions (d/db user/datomic-conn) 5 0))))
 
-(defn attributes [db limit page]
+(defn attributes [db pull-pattern limit page]
   #?(:clj
      (->> (m/ap (->> (m/? (query '[:find (pull ?e pattern)
                                    :in $ pattern
                                    :where
                                    [?e :db/valueType _]]
-                                 db
-                                 a-attrs))
+                                 db pull-pattern))
                      (map first)
                      (sort-by :db/ident)
                      (map #(update % :db/id nav-a-overview))

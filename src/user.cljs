@@ -18,6 +18,7 @@
                              (binding [app.core/history (p/watch !history)
                                        app.core/Navigate! (p/fn [route] (p/client (swap! !history conj route)))
                                        app.core/Navigate-back! (p/fn [] (p/client (swap! !history rest)))]
+                               (dom/pre (pr-str app.core/history))
                                (app.core/App.)
                                #_(dom/div (dom/text "hello world " (p/server (pr-str (type app.core/db))))))))))
                      (catch Pending _)))
