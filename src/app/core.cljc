@@ -2,8 +2,8 @@
   (:require [hyperfiddle.photon :as p]
             [hyperfiddle.photon-dom :as dom]
             [hyperfiddle.photon-ui :as ui]
-            [app.queries :refer [transactions attributes entity-details
-                                 tx-overview a-overview]])
+            #?(:clj [app.queries :refer [transactions attributes entity-details
+                                         tx-overview a-overview]]))
   #?(:cljs (:require-macros app.core)))
 
 (p/def db)                                                  ; server
