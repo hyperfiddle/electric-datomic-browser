@@ -20,11 +20,13 @@
   (def datomic-conn (datomic.client.api/connect datomic-client {:db-name "mbrainz-subset"}))
   (def server (hyperfiddle.photon-jetty-server/start-server! photon-server-config))
   (comment (.stop server))
-  (hyperfiddle.rcf/enable!))
+  (println (str "\n👉 App available at http://" (:host photon-server-config) ":" (-> server (.getConnectors) first (.getPort)) "\n")))
 
 (comment
   "REPL entrypoint"
   (main)
+
+  "Enable RCF"
   (hyperfiddle.rcf/enable!)
 
   (require '[datomic.client.api.async :as d])

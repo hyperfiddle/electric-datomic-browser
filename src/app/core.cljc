@@ -11,7 +11,7 @@
 (p/def Navigate!)                                           ; client
 (p/def Navigate-back!)                                      ; client
 (p/def history)
-(def limit 100)
+(def limit 20)
 (p/def initial-page 0)
 (p/def !page nil)
 
