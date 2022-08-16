@@ -1,75 +1,76 @@
 (ns app.queries
   (:require [datomic.client.api.async :as d]
-            [missionary.core :as m]
             [hyperfiddle.photon :as p]
-            [hyperfiddle.rcf :refer [tests ! % with]]))
+            [hyperfiddle.rcf :refer [tests ! % with]]
+            [missionary.core :as m])
+  (:import [hyperfiddle.photon Failure Pending]))
 
-
+(defn chan->task [ch]
+  (->> (p/chan->flow ch)
+       (m/reduce into [])))
 
 (defn query
   "Return a task running a datomic query asynchronously, and completing
   when all streamed results have been collected into a vector."
   [query & args]
-  (m/reduce into [] (p/chan->flow (d/q {:query query, :args (vec args)}))))
+  (chan->task (d/q {:query query, :args (vec args)})))
 
-(defn nav-tx-overview [txid] {:route :tx-overview :param txid})
-(defn nav-a-overview [aid] {:route :a-overview :param aid})
-(defn nav-e-details [eid] {:route :e-details :param eid})
-(defn possibly-nav-ref [v]
-  (if (map? v)
-    (cond
-      (:db/ident v) (nav-e-details (:db/ident v))
-      (:db/id v) (nav-e-details (:db/id v))
-      :else v)
-    v))
+(comment (m/? (query '[:find (pull ?tx [:db/id :db/txInstant])
+                       :where [?tx :db/txInstant]]
+                     user/db)))
+
+(defn task->cp [!x]
+  (->> (m/ap (m/? !x))
+       (m/reductions {} (Failure. (Pending.)))))
+
+(comment
+  (def it ((task->cp (query '[:find (pull ?tx [:db/id :db/txInstant])
+                              :where [?tx :db/txInstant]]
+                            user/db))
+           #(prn ::ready) #(prn ::done)))
+  @it := Pending
+  @it := [...]
+  (it))
+
+(defn paginate [limit page xs] (->> xs (drop (* limit page)) (take limit)))
 
 (defn transactions [db pull-pattern limit page]
-  ;; We produce a flow which will run a query, transform its result, emit it and terminate.
-  (->> (m/ap                                             ; return a discrete flow
-         (->> (query                                     ; build a task running the query
-                '[:find (pull ?tx pattern)
-                  :in $ pattern
-                  :where [?tx :db/txInstant]]
-                db pull-pattern)
-              (m/?)                                      ; run it, wait for it to succeed and produce a result
-              ; transform result
-              (map first)
-              (sort-by :db/txInstant)
-              (map #(update % :db/id nav-tx-overview))
-              (reverse)
-              (drop (* limit page))
-              (take limit)))
-       ;; A discrete flow does not have an initial value. It is undefined until it produces a first value.
-       ;; A UI is continuous, meaning it's always defined. There is no such thing as an "in between two states" UI.
-       ;; Either it's visible on screen, or it's not a UI.
-       ;; We must give this discreet flow an initial value for the UI to render something. We choose `nil`.
-       ;; {} is pronounced "discard", given two arguments, it ignores the left one and return the right one.
-       ;; Our UI will therefore display nil then the query result will arrive, replace nil, and the UI will rerender.
-       (m/reductions {} nil)))
+  (m/sp (->> (m/? (query '[:find (pull ?tx pattern)
+                           :in $ pattern
+                           :where [?tx :db/txInstant]]
+                         db pull-pattern))
+             (map first)
+             (sort-by :db/txInstant)
+             reverse
+             (paginate limit page))))
 
-(comment
-  (m/? (m/reduce {} nil (transactions (d/db user/datomic-conn) 5 0))))
+(comment (time (m/? (transactions user/db [:db/id] 3 0))))
 
 (defn attributes [db pull-pattern limit page]
-  (->> (m/ap (->> (m/? (query '[:find (pull ?e pattern)
-                                :in $ pattern
-                                :where
-                                [?e :db/valueType _]]
-                              db pull-pattern))
-                  (map first)
-                  (sort-by :db/ident)
-                  (map #(update % :db/id nav-a-overview))
-                  (map #(update-vals % possibly-nav-ref))
-                  (drop (* limit page))
-                  (take limit)))
-       (m/reductions {} nil)))
+  (m/sp (->> (m/? (query '[:find (pull ?e pattern)
+                           :in $ pattern
+                           :where [?e :db/valueType _]]
+                         db pull-pattern))
+             (map first)
+             (sort-by :db/ident)
+             (paginate limit page))))
 
-(comment
-  (time (m/? (m/reduce {} nil (attributes (d/db user/datomic-conn) 10 0))))
-  )
+(comment (time (m/? (attributes user/db [:db/ident] 3 0))))
 
-(defn resolve-datoms [db datoms limit page]
-  (m/sp (let [ref-attr? (->> (m/? (query '[:find ?e :where [?e :db/valueType :db.type/ref]] db))
+(defn tx-datoms [conn txid limit page]
+  ; https://docs.datomic.com/client-api/datomic.client.api.async.html#var-tx-range
+  (m/sp (->> (p/chan->flow (d/tx-range conn {:start txid, :end (inc txid)}))
+             (m/eduction (take 1)) ; terminate flow after 1 tx
+             (m/eduction (map :data))
+             (m/reduce into [])
+             m/?
+             (paginate limit page))))
+
+(comment (time (m/? (tx-datoms user/datomic-conn 13194139534022 3 0))))
+
+(defn render-datoms [db !datoms]
+  (m/sp (let [datoms (m/? !datoms) ; ?
+              ref-attr? (->> (m/? (query '[:find ?e :where [?e :db/valueType :db.type/ref]] db))
                              (map first)
                              (set))
               datoms-id? (set (concat (map #(nth % 0) datoms)
@@ -84,49 +85,36 @@
                                                [(contains? ?datoms-id? ?e)]]
                                              db
                                              datoms-id?)))]
-          (->> datoms
-               (drop (* limit page))
-               (take limit)
-               (map (fn [[e a v t]]
-                      {:e  (nav-e-details (get id->ident e e))
-                       :a  (nav-a-overview (get id->ident a a))
-                       :v  (if (ref-attr? a)
-                             (possibly-nav-ref {:db/id v :db/ident (get id->ident v v)})
-                             v)
-                       :tx (nav-tx-overview t)}))))))
-
-(defn tx-overview [conn db txid limit page]
-  (->> (m/ap (let [tx-datoms (->> (d/tx-range conn {:start txid, :end (inc txid)})
-                                  (p/chan->flow)
-                                  (m/eduction (take 1))  ; flow will terminate after 1 tx is received
-                                  (m/?<)                 ; park until flow produces a value
-                                  (:data))]
-               (m/? (resolve-datoms db tx-datoms limit page))))
-       (m/reductions {} nil)))                          ; UI need an initial value to display until query produces its first result
+          (->> datoms (map (fn [[e a v t]]
+                             {:e (get id->ident e e)
+                              :a (get id->ident a a)
+                              :v (get id->ident v v)
+                              :tx t}))))))
 
 (comment
-  (time (m/? (m/reduce {} nil (tx-overview user/datomic-conn (d/db user/datomic-conn) 13194139534022 200 0)))))
+  (def !datoms (tx-datoms user/datomic-conn 13194139534022 3 0))
+  (time (m/? (render-datoms user/db !datoms))))
 
-(defn entity-details [db eid-or-eident limit page]
-  (->> (m/ap (let [datoms (m/? (->> (d/datoms db {:index      :eavt
-                                                  :components [eid-or-eident]})
-                                    (p/chan->flow)
-                                    (m/reduce into [])))]
-               (m/? (resolve-datoms db datoms limit page))))
-       (m/reductions {} nil)))
+(defn tx-overview [conn txid limit page]
+  (tx-datoms conn txid limit page))
 
 (comment
-  (m/? (m/reduce {} nil (entity-details (d/db user/datomic-conn) 1 100 0)))
-  (m/? (m/reduce {} nil (entity-details (d/db user/datomic-conn) :db/ident 100 0))))
+  (time (m/? (tx-overview user/datomic-conn 13194139534018 3 0)))
+  (time (m/? (render-datoms user/db (tx-overview user/datomic-conn 13194139534018 3 0)))))
 
-(defn a-overview [db aid-or-ident limit page]
-  (->> (m/ap (let [a-datoms (m/? (->> (d/datoms db {:index      :aevt
-                                                    :components [aid-or-ident]})
-                                      (p/chan->flow)
-                                      (m/reduce into [])))]
-               (m/? (resolve-datoms db a-datoms limit page))))
-       (m/reductions {} nil)))                          ; UI need an initial value to display until query produces its first result
+(defn entity-details [db e limit page]
+  (m/sp (->> (m/? (chan->task (d/datoms db {:index :eavt, :components [e]})))
+             (paginate limit page))))
 
 (comment
-  (time (m/? (m/reduce {} nil (a-overview (d/db user/datomic-conn) 10 200 0))))
-  (time (m/? (m/reduce {} nil (a-overview (d/db user/datomic-conn) :db/ident 200 0)))))
+  (m/? (entity-details user/db 1 3 0))
+  (m/? (entity-details user/db :db/ident 3 0))
+  (m/? (render-datoms user/db (entity-details user/db :db/ident 3 0))))
+
+(defn a-overview [db a limit page]
+  (m/sp (->> (m/? (chan->task (d/datoms db {:index :aevt, :components [a]})))
+             (paginate limit page))))
+
+(comment
+  (m/? (a-overview user/db :db/ident 3 0))
+  (m/? (render-datoms user/db (a-overview user/db :db/ident 3 0))))

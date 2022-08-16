@@ -1,7 +1,7 @@
 (ns user
   (:require datomic.client.api
             hyperfiddle.photon-jetty-server
-            hyperfiddle.rcf
+            [hyperfiddle.rcf :refer [tests]]
             [missionary.core :as m]
             shadow.cljs.devtools.api
             shadow.cljs.devtools.server
@@ -20,19 +20,22 @@
   (def datomic-conn (datomic.client.api/connect datomic-client {:db-name "mbrainz-subset"}))
   (def server (hyperfiddle.photon-jetty-server/start-server! photon-server-config))
   (comment (.stop server))
-  (println (str "\n👉 App available at http://" (:host photon-server-config) ":" (-> server (.getConnectors) first (.getPort)) "\n")))
+  (println (str "\n👉 App available at http://" (:host photon-server-config) ":" (-> server (.getConnectors) first (.getPort)) "\n"))
+
+  "dev bindings"
+  (require '[datomic.client.api.async :as d])
+  (def db (datomic.client.api.async/db datomic-conn))
+  (hyperfiddle.rcf/enable!))
 
 (comment
   "REPL entrypoint"
   (main)
 
-  "Enable RCF"
-  (hyperfiddle.rcf/enable!)
-
-  (require '[datomic.client.api.async :as d])
-  (def db (d/db datomic-conn))
-  (m/? (app.core/query
-         '[:find (pull ?tx [:db/id :db/txInstant])
-           :where [?tx :db/txInstant]]
-         db))
-  )
+  "Sanity check"
+  (tests
+    (->> (m/? (app.queries/query
+                '[:find (pull ?tx [:db/id :db/txInstant])
+                  :where [?tx :db/txInstant]]
+                db))
+         (take 1))
+    := [[#:db{:id 13194139533312, :txInstant #inst"1970-01-01T00:00:00.000-00:00"}]]))
