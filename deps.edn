@@ -1,16 +1,21 @@
-{:paths   ["src" "resources"]
- :deps    {ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
-           ch.qos.logback/logback-core    {:mvn/version "1.2.11"}
-           com.datomic/client-api         {:mvn/version "1.0.58"}
-           com.google.guava/guava         {:mvn/version "31.1-jre"} ; force guava to latest to fix shadow issue
-           com.hyperfiddle/photon         {:mvn/version "20220816-122143"}
-           hyperfiddle/rcf                {:git/url "https://github.com/hyperfiddle/rcf"
-                                           :git/sha "21f38ce1d15787b83696e6797be41f762619814f"}
-           org.clojure/clojure            {:mvn/version "1.11.1"}
-           org.clojure/clojurescript      {:mvn/version "1.11.4"}
-           thheller/shadow-cljs           {:mvn/version "2.18.0"}}
- :aliases {:dev {:extra-deps {com.datomic/dev-local {:mvn/version "1.0.243"}}
-                 :exec-fn    user/main
-                 :exec-args  {}
-                 :jvm-opts   ["-XX:-OmitStackTraceInFastThrow"
-                              "-Xss2m"]}}}
+{:paths ["src"]
+ :deps {com.datomic/client-api {:mvn/version "1.0.58"}
+        com.hyperfiddle/electric {:mvn/version "v2-alpha-63-geaa9f61b"}
+        com.hyperfiddle/rcf {:mvn/version "20220926-202227"}
+        org.clojure/clojure {:mvn/version "1.11.1"}
+        org.clojure/clojurescript {:mvn/version "1.11.60"}
+        org.clojure/tools.logging {:mvn/version "1.2.4"}}
+ :mvn/repos {"my.datomic.com" {:url "https://my.datomic.com/repo"}}
+ :aliases
+ {:dev
+  {:extra-deps
+   {binaryage/devtools {:mvn/version "1.0.6"}
+    ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
+    com.datomic/dev-local {:mvn/version "1.0.243"}
+    com.google.guava/guava {:mvn/version "31.1-jre"} ; fix conflict - datomic cloud & shadow
+    thheller/shadow-cljs {:mvn/version "2.20.1"}}
+   :jvm-opts
+   ["-Xss2m" ; https://github.com/hyperfiddle/photon/issues/11
+    "-XX:-OmitStackTraceInFastThrow"] ;; RCF - https://archive.md/NNt9r
+   :exec-fn user/main
+   :exec-args {}}}}

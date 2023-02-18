@@ -1,30 +1,22 @@
 (ns app.queries
+  (:import [hyperfiddle.electric Failure Pending])
   (:require [datomic.client.api.async :as d]
-            [hyperfiddle.photon :as p]
+            [hyperfiddle.electric :as e]
             [hyperfiddle.rcf :refer [tests ! % with]]
-            [missionary.core :as m])
-  (:import [hyperfiddle.photon Failure Pending]))
-
-(defn chan->task [ch]
-  (->> (p/chan->flow ch)
-       (m/reduce into [])))
+            [missionary.core :as m]))
 
 (defn query
   "Return a task running a datomic query asynchronously, and completing
   when all streamed results have been collected into a vector."
   [query & args]
-  (chan->task (d/q {:query query, :args (vec args)})))
+  (e/chan->task (d/q {:query query, :args (vec args)})))
 
 (comment (m/? (query '[:find (pull ?tx [:db/id :db/txInstant])
                        :where [?tx :db/txInstant]]
                      user/db)))
 
-(defn task->cp [!x]
-  (->> (m/ap (m/? !x))
-       (m/reductions {} (Failure. (Pending.)))))
-
 (comment
-  (def it ((task->cp (query '[:find (pull ?tx [:db/id :db/txInstant])
+  (def it ((e/task->cp (query '[:find (pull ?tx [:db/id :db/txInstant])
                               :where [?tx :db/txInstant]]
                             user/db))
            #(prn ::ready) #(prn ::done)))
@@ -59,7 +51,7 @@
 
 (defn tx-datoms [conn txid limit page]
   ; https://docs.datomic.com/client-api/datomic.client.api.async.html#var-tx-range
-  (m/sp (->> (p/chan->flow (d/tx-range conn {:start txid, :end (inc txid)}))
+  (m/sp (->> (e/chan->ap (d/tx-range conn {:start txid, :end (inc txid)}))
              (m/eduction (take 1)) ; terminate flow after 1 tx
              (m/eduction (map :data))
              (m/reduce into [])
@@ -103,7 +95,7 @@
   (time (m/? (render-datoms user/db (tx-overview user/datomic-conn 13194139534018 3 0)))))
 
 (defn entity-details [db e limit page]
-  (m/sp (->> (m/? (chan->task (d/datoms db {:index :eavt, :components [e]})))
+  (m/sp (->> (m/? (e/chan->task (d/datoms db {:index :eavt, :components [e]})))
              (paginate limit page))))
 
 (comment
@@ -112,7 +104,7 @@
   (m/? (render-datoms user/db (entity-details user/db :db/ident 3 0))))
 
 (defn a-overview [db a limit page]
-  (m/sp (->> (m/? (chan->task (d/datoms db {:index :aevt, :components [a]})))
+  (m/sp (->> (m/? (e/chan->task (d/datoms db {:index :aevt, :components [a]})))
              (paginate limit page))))
 
 (comment
