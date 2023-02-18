@@ -6,8 +6,7 @@
 
 (def electric-main
   (hyperfiddle.electric/boot ; Electric macroexpansion - Clojure to signals compiler
-    (binding [hyperfiddle.electric-dom2/node js/document.body]
-      (app.datomic-browser/Datomic-browser.))))
+    (app.datomic-browser/DatomicBrowser.)))
 
 (defonce reactor nil)
 

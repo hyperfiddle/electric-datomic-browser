@@ -1,145 +1,233 @@
 (ns app.datomic-browser
-
-  ; trick shadow into ensuring that client/server always have the same version
-  ; all .cljc files containing Electric code must have this line!
-  #?(:cljs (:require-macros app.datomic-browser)) ; <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-  (:require [hyperfiddle.electric :as e]
+  "must have datomic on classpath, and must load 'test ns"
+  #?(:cljs (:require-macros app.datomic-browser))
+  #?(:cljs (:import [goog.math Long])) ; only this require syntax passes shadow in this file, why?
+  (:require clojure.edn
+            contrib.ednish
+            [contrib.str :refer [any-matches?]]
+            [contrib.data :refer [unqualify treelister]]
+            #?(:clj [contrib.datomic-contrib :as dx])
+            #?(:cljs contrib.datomic-cloud-contrib)
+            [contrib.datomic-m #?(:clj :as :cljs :as-alias) d]
+            [contrib.gridsheet :as gridsheet :refer [Explorer]]
+            [hyperfiddle.electric :as e]
             [hyperfiddle.electric-dom2 :as dom]
-            [hyperfiddle.electric-ui4 :as ui]
-            #?(:clj [app.queries :refer [tx-overview entity-details a-overview
-                                         attributes transactions
-                                         tx-datoms render-datoms]])))
+            [hyperfiddle.router :as router]
+            #?(:cljs [hyperfiddle.router-html5 :as html5])
+            [missionary.core :as m]))
 
-(e/def db) ; server
-(e/def conn) ; server
-(e/def Navigate!) ; client
-(e/def Navigate-back!) ; client
-(e/def history)
-(def limit 20)
-(e/def initial-page 0)
-(e/def !page nil)
+(e/def conn)
+(e/def db)
+(e/def schema)
 
-(e/def Cell) ; dynamic, client
+(e/defn RecentTx []
+  (e/client (dom/h1 (dom/text "Recent Txs")))
+  (Explorer.
+    (treelister (new (->> (d/datoms> db {:index :aevt, :components [:db/txInstant]})
+                       (m/reductions conj ())
+                       (m/relieve {})))
+      (fn [_]) any-matches?)
+    {::gridsheet/page-size 30
+     ::gridsheet/row-height 24
+     ::gridsheet/columns [:db/id :db/txInstant]
+     ::gridsheet/grid-template-columns "10em auto"
+     ::gridsheet/Format
+     (e/fn [[e _ v tx op :as record] a]
+       (case a
+         :db/id (e/client (router/link [::tx tx] (dom/text tx)))
+         :db/txInstant (e/client (dom/text (pr-str v))) #_(e/client (.toLocaleDateString v))))}))
 
-#?(:cljs (defn preventDefault [e] (.preventDefault e))) ; photon doesn't implement clojure's host interop special forms yet
+(e/defn Attributes []
+  (e/client (dom/h1 (dom/text "Attributes")))
+  (let [cols [:db/ident :db/valueType :db/cardinality :db/unique :db/isComponent
+              #_#_#_#_:db/fulltext :db/tupleType :db/tupleTypes :db/tupleAttrs]]
+    (Explorer.
+      (treelister (->> (dx/attributes> db cols)
+                    (m/reductions conj [])
+                    (m/relieve {})
+                    new
+                    (sort-by :db/ident)) ; sort by db/ident which isn't available
+        (fn [_]) any-matches?)
+      {::gridsheet/page-size 15
+       ::gridsheet/row-height 24
+       ::gridsheet/columns cols
+       ::gridsheet/grid-template-columns "auto 6em 4em 4em 4em"
+       ::gridsheet/Format
+       (e/fn [row col]
+         (e/client
+           (let [v (col row)]
+             (case col
+               :db/ident (router/link [::attribute v] (dom/text v))
+               :db/valueType (some-> v :db/ident name dom/text)
+               :db/cardinality (some-> v :db/ident name dom/text)
+               :db/unique (some-> v :db/ident name dom/text)
+               (dom/text (str v))))))})))
 
-(e/defn Data-viewer [cols Query-fn]
+(e/defn Format-entity [[k v :as row] col]
+  (assert (some? schema))
+  (case col
+    ::k (cond
+          (= :db/id k) (e/client (dom/text k)) ; :db/id is our schema extension, can't nav to it
+          (contains? schema k) (e/client (router/link [::attribute k] (dom/text k)))
+          () (e/client (dom/text (str k)))) ; str is needed for Long db/id, why?
+    ::v (if-not (coll? v) ; don't render card :many intermediate row
+          (let [[valueType cardinality]
+                ((juxt (comp unqualify dx/identify :db/valueType)
+                   (comp unqualify dx/identify :db/cardinality)) (k schema))]
+            (cond
+              (= :db/id k) (e/client (router/link [::entity v] (dom/text v)))
+              (= :ref valueType) (e/client (router/link [::entity v] (dom/text v)))
+              () (e/client (dom/text (pr-str v))))))))
+
+(e/defn EntityDetail [e]
+  (assert e)
+  (e/client (dom/h1 (dom/text "Entity detail: " e))) ; treeview on the entity
+  (Explorer.
+    ;; TODO inject sort
+    (treelister (new (e/task->cp (d/pull db {:eid e :selector ['*] :compare compare})))
+      (partial dx/entity-tree-entry-children schema)
+      any-matches?)
+    {::gridsheet/page-size 15
+     ::gridsheet/row-height 24
+     ::gridsheet/columns [::k ::v]
+     ::gridsheet/grid-template-columns "15em auto"
+     ::gridsheet/Format Format-entity}))
+
+(e/defn EntityHistory [e]
+  (assert e)
+  (e/client (dom/h1 (dom/text "Entity history: " (pr-str e))))
+  (Explorer.
+    ; accumulate what we've seen so far, for pagination. Gets a running count. Bad?
+    (treelister (new (->> (dx/entity-history-datoms> db e)
+                       (m/reductions conj []) ; track a running count as well?
+                       (m/relieve {})))
+      (fn [_]) any-matches?)
+    {::gridsheet/page-size 20
+     ::gridsheet/row-height 24
+     ::gridsheet/columns [::e ::a ::op ::v ::tx-instant ::tx]
+     ::gridsheet/grid-template-columns "10em 10em 3em auto auto 9em"
+     ::gridsheet/Format
+     (e/fn [[e aa v tx op :as row] a]
+       (when row ; when this view unmounts, somehow this fires as nil
+         (case a
+           ::op (e/client (dom/text (name (case op true :db/add false :db/retract))))
+           ::e (e/client (router/link [::entity e] (dom/text e)))
+           ::a (if (some? aa)
+                 (let [ident (:db/ident (new (e/task->cp (d/pull db {:eid aa :selector [:db/ident]}))))]
+                   (e/client (dom/text (pr-str ident)))))
+           ::v (e/client (some-> v pr-str dom/text))
+           ::tx (e/client (router/link [::tx tx] (dom/text tx)))
+           ::tx-instant (let [x (:db/txInstant (new (e/task->cp (d/pull db {:eid tx :selector [:db/txInstant]}))))]
+                          (e/client (pr-str (dom/text x))))
+           (str v))))}))
+
+(e/defn AttributeDetail [a]
+  (e/client (dom/h1 (dom/text "Attribute detail: " a)))
+  (Explorer.
+    (treelister (new (->> (d/datoms> db {:index :aevt, :components [a]})
+                       (m/reductions conj [])
+                       (m/relieve {})))
+      (fn [_]) any-matches?)
+    {::gridsheet/page-size 20
+     ::gridsheet/row-height 24
+     ::gridsheet/columns [:e :a :v :tx]
+     ::gridsheet/grid-template-columns "15em 15em calc(100% - 15em - 15em - 9em) 9em"
+     ::gridsheet/Format
+     (e/fn [[e _ v tx op :as x] k]
+       (e/client
+         (case k
+           :e (router/link [::entity e] (dom/text e))
+           :a (dom/text (pr-str a)) #_(let [aa (new (e/task->cp (dx/ident! db aa)))] aa)
+           :v (some-> v pr-str dom/text) ; when a is ref, render link
+           :tx (router/link [::tx tx] (dom/text tx)))))}))
+
+(e/defn TxDetail [e]
+  (e/client (dom/h1 (dom/text "Tx detail: " e)))
+  (Explorer.
+    (treelister (new (->> (d/tx-range> conn {:start e, :end (inc e)}) ; global
+                       (m/eduction (map :data) cat)
+                       (m/reductions conj [])
+                       (m/relieve {})))
+      (fn [_]) any-matches?)
+    {::gridsheet/page-size 20
+     ::gridsheet/row-height 24
+     ::gridsheet/columns [:e :a :v :tx]
+     ::gridsheet/grid-template-columns "15em 15em calc(100% - 15em - 15em - 9em) 9em"
+     ::gridsheet/Format
+     (e/fn [[e aa v tx op :as x] a]
+       (case a
+         :e (let [e (new (e/task->cp (dx/ident! db e)))] (e/client (router/link [::entity e] (dom/text e))))
+         :a (let [aa (new (e/task->cp (dx/ident! db aa)))] (e/client (router/link [::attribute aa] (dom/text aa))))
+         :v (pr-str v) ; when a is ref, render link
+         (str tx)))}))
+
+(e/defn DbStats []
+  (e/client (dom/h1 (dom/text "Db stats")))
+  (Explorer.
+    (treelister
+      (new (e/task->cp (d/db-stats db)))
+      (fn [[k v]] (condp = k :attrs (into (sorted-map) v) nil))
+      any-matches?)
+    {::gridsheet/page-size 20
+     ::gridsheet/row-height 24
+     ::gridsheet/columns [::k ::v]
+     ::gridsheet/grid-template-columns "20em auto"
+     ::gridsheet/Format
+     (e/fn [[k v :as row] col]
+       (e/client
+         (case col
+           ::k (dom/text (pr-str k))
+           ::v (cond
+                 (= k :attrs) nil ; print children instead
+                 () (dom/text (pr-str v))))))})) ; {:count 123}
+
+(comment
+  {:datoms 800958,
+   :attrs
+   {:release/script {:count 11435},
+    :label/type {:count 870}
+    ... ...}})
+
+(e/defn Page [[page state x]]
+  (dom/h1 (dom/text "Datomic browser"))
+  (dom/link (dom/props {:rel :stylesheet, :href "gridsheet-optional.css"}))
+  (dom/div (dom/props {:class "user-gridsheet-demo"})
+    (dom/div (dom/text "Nav: ")
+      (router/link [::summary] (dom/text "home")) (dom/text " ")
+      (router/link [::db-stats] (dom/text "db-stats")) (dom/text " ")
+      (router/link [::recent-tx] (dom/text "recent-tx")))
+    (router/router 1 ; focus explorer state
+      (e/server
+        (case page
+          ::summary (Attributes.)
+          ::attribute (AttributeDetail. x)
+          ::tx (TxDetail. x)
+          ::entity (do (EntityDetail. x) (EntityHistory. x))
+          ::db-stats (DbStats.)
+          ::recent-tx (RecentTx.)
+          (e/client (dom/text "no matching route: " (pr-str page))))))))
+
+(def read-edn-str (partial clojure.edn/read-string
+                    {:readers #?(:cljs {'goog.math/Long goog.math.Long/fromString} ; datomic cloud long ids
+                                 :clj {})}))
+
+#?(:cljs (defn set-page-title! [[page & _]]
+           (set! (.-title js/document)
+             (str (clojure.string/capitalize (name page)) " - Datomic Browser"))))
+
+(e/defn DatomicBrowser []
   (e/client
-    (let [!page (atom 0)
-          page (e/watch !page)
-          more? true]
-      (dom/div {::dom/class "controls"}
-        (ui/element dom/a {::dom/href ""
-                           ::dom/disabled (= 0 page)
-                           ::ui/click-event (e/fn [e]
-                                              (swap! !page dec)
-                                              (preventDefault e))} "previous")
-        (str " page " page " ")
-        (ui/element dom/a {::dom/href ""
-                           ::dom/disabled (not more?)
-                           ::ui/click-event (e/fn [e]
-                                              (swap! !page inc)
-                                              (preventDefault e))} "next"))
-      (dom/table
-        (dom/thead (e/for [k cols] (dom/td k)))
-        (dom/tbody
-          (e/server
-            (e/for [m (Query-fn. cols page)] ; are there more pages?
-              (e/client
-                (dom/tr
-                  (e/for [k cols]
-                    (dom/td {:style {:white-space :nowrap}}
-                            (Cell. k (m k)))))))))))))
+    (binding [dom/node js/document.body
+              router/encode contrib.ednish/encode-uri
+              router/decode #(or (contrib.ednish/decode-path % read-edn-str) [::summary])]
 
-(e/defn Nav-link [label route param]
-  (ui/element dom/a {::dom/href ""
-                     ::ui/click-event (e/fn [e]
-                                        (Navigate!. [route param])
-                                        (preventDefault e))} label))
+      (router/router (html5/HTML5-History.)
+        (set-page-title! router/route)
+        (dom/pre (dom/text (contrib.str/pprint-str router/route)))
 
-(e/defn HomeScreen []
-  (dom/h1 "Transactions")
-  (binding [Cell (e/fn [k v]
-                   (case k
-                     :db/id (Nav-link. v :tx-overview v)
-                     :db/txInstant (pr-str v)
-                     (str v)))]
-    (e/server (Data-viewer.
-                [:db/id :db/txInstant]
-                (e/fn [shape page]
-                  (new (e/task->cp (transactions db shape 10 page)))))))
-
-  (dom/h1 "Attributes")
-  (binding [Cell (e/fn [k v]
-                   (case k
-                     :db/id (Nav-link. v :e-details v)
-                     :db/ident (Nav-link. v :e-details v)
-                     :db/valueType (some-> v :db/ident name)
-                     :db/cardinality (some-> v :db/ident name)
-                     :db/unique (some-> v :db/ident name)
-                     (str v)))]
-    (e/server (Data-viewer.
-                [:db/id :db/ident :db/valueType :db/cardinality :db/unique :db/doc
-                 ; :db/fulltext :db/isComponent :db/tupleType :db/tupleTypes :db/tupleAttrs
-                 ]
-                (e/fn [shape page]
-                  (new (e/task->cp (attributes db shape 10 page))))))))
-
-(e/defn DatomCell [k v]
-  (case k
-    :e (Nav-link. v :e-details v)
-    :a (Nav-link. v :a-overview v)
-    :v (if (map? v) ; need to know valueType
-         (cond
-           (:db/ident v) (Nav-link. (:db/ident v) :a-overview (:db/ident v))
-           (:db/id v) (Nav-link. (:db/ident v) :e-details (:db/ident v))
-           :else v) v)
-    :tx (Nav-link. v :tx-overview v)
-    (pr-str v)))
-
-(e/defn EntityDetailsScreen [eid]
-  (dom/h1 "Entity Details: " eid)
-  (binding [Cell DatomCell]
-    (e/server (Data-viewer.
-                [:e :a :v :tx]
-                (e/fn [_shape page]
-                  (new (e/task->cp (render-datoms db (entity-details db eid limit page)))))))))
-
-(e/defn TransactionOverviewScreen [txid]
-  (dom/h1 "Transaction Overview: " txid)
-  (binding [Cell DatomCell]
-    (e/server (Data-viewer. [:e :a :v :tx]
-                            (e/fn [_shape page]
-                              (new (e/task->cp (render-datoms db (tx-overview conn txid limit page)))))))))
-
-(e/defn AttributeOverviewScreen [aid]
-  (dom/h1 "Attribute Overview: " aid)
-  (binding [Cell DatomCell]
-    (e/server (Data-viewer. [:e :a :v :tx]
-                            (e/fn [_shape page]
-                              (new (e/task->cp (render-datoms db (a-overview db aid limit page)))))))))
-
-
-(e/defn Datomic-browser []
-  (e/server
-    (binding [conn user/datomic-conn
-              db (datomic.client.api.async/db user/datomic-conn)]
-      (e/client
-        (binding [history (e/watch !history)
-                  Navigate! (e/fn [route]
-                              (e/client
-                                (reset! !history route)
-                                #_(swap! !history conj route)))
-                  #_#_app.core/Navigate-back! (p/fn [] (p/client (swap! !history rest)))]
-          (dom/div (dom/text "hello world " (e/server (pr-str (type db)))))
-          #_(let [[route param] history
-                  route (or route :home)]
-              (Nav-link. "Home" :home nil) (dom/span " ") (dom/code (pr-str app.core/history))
-              #_(ui/button {::dom/disabled (= (count history) 0)
-                            ::ui/click-event (e/fn [_] (Navigate-back!.))} "Back")
-              (condp = route
-                :home (HomeScreen.)
-                :e-details (EntityDetailsScreen. param)
-                :tx-overview (TransactionOverviewScreen. param)
-                :a-overview (AttributeOverviewScreen. param))))))))
+        (e/server
+          (binding [conn @(requiring-resolve 'user/datomic-conn)]
+            (binding [db (d/db conn)]
+              (binding [schema (new (dx/schema> db))]
+                (e/client
+                  (Page. router/route))))))))))
