@@ -1,6 +1,6 @@
 # Datomic browser — Electric Clojure example
 
-Video (todo)
+https://user-images.githubusercontent.com/124158/219978031-939344eb-4489-4b97-af9f-4b2df38c70db.mp4
 
 ## Dependencies
 
