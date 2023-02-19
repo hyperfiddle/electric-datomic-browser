@@ -137,7 +137,7 @@
          (case k
            :e (history/link [::entity e] (dom/text e))
            :a (dom/text (pr-str a)) #_(let [aa (new (e/task->cp (dx/ident! db aa)))] aa)
-           :v (some-> v pr-str dom/text) ; when a is ref, render link
+           :v (some-> v str dom/text) ; todo when a is ref, render link
            :tx (history/link [::tx tx] (dom/text tx)))))}))
 
 (e/defn TxDetail [e]
