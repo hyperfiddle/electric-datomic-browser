@@ -1,22 +1,21 @@
-# Installation
+# Datomic browser — Electric Clojure example
 
-## Install datomic dev-local
-Go to https://docs.datomic.com/cloud/dev-local.html and follow instructions.
+Video (todo)
 
-## Install mbrainz dataset
-* mbrainz-subset: https://docs.datomic.com/cloud/dev-local.html#samples - extract zip into datomic storage dir, that's it
-* mbrainz-1968-1973: https://github.com/Datomic/mbrainz-importer - don't use this one, too big
+## Dependencies
 
-mbrainz-1968-1973 instructions (don't do this):
-3. Clone this repo: 
-4. `cd` into it
-5. create a file `manifest.edn` with this content:
-```clojure
-{:client-cfg {:server-type :dev-local
-              :system      "datomic-samples"}
- :db-name "mbrainz-1968-1973"
- :basedir "subsets"
- :concurrency 3}
-```
-4. In `deps.edn`, set `com.datomic/dev-local` version to `"1.0.243"`
-5. Run `clojure -M -m datomic.mbrainz.importer manifest.edn`
+* Datomic cloud dev local
+* hyperfiddle.electric
+* hyperfiddle.history (bundled with Electric) – experimental composable router
+* datomic/missionary adapter (bundled with Electric) – experimental streaming adapter for Datomic
+
+## Maturity: experimental
+
+* **Websocket issue** - Electric uses a websocket, compatibility with Datomic Cloud Ions is unknown
+* **core.async issue** – Electric is fully async, so core.async APIs like Datomic Client API must be bridged. the Electric library includes an experimental Missionary adapter which is used here, but there is future work to do for a high level Electric adapter to Datomic Client API.
+
+## Getting Started
+
+* Install datomic dev-local: https://docs.datomic.com/cloud/dev-local.html
+* get mbrainz-subset dataset: https://docs.datomic.com/cloud/dev-local.html#samples
+  * extract zip into datomic storage dir, that's it
