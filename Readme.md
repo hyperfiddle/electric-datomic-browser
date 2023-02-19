@@ -5,6 +5,7 @@ https://user-images.githubusercontent.com/124158/219978031-939344eb-4489-4b97-af
 ## Dependencies
 
 * Datomic cloud dev local
+* Datomic client API
 * hyperfiddle.electric
 * hyperfiddle.history (bundled with Electric) – experimental composable router
 * datomic/missionary adapter (bundled with Electric) – experimental streaming adapter for Datomic
