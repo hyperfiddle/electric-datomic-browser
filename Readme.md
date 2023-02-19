@@ -13,7 +13,7 @@ https://user-images.githubusercontent.com/124158/219978031-939344eb-4489-4b97-af
 ## Maturity: experimental
 
 * **Websocket issue** - Electric uses a websocket, compatibility with Datomic Cloud Ions is unknown
-* **core.async issue** – Electric is fully async, so core.async APIs like Datomic Client API must be bridged. the Electric library includes an experimental Missionary adapter which is used here, but there is future work to do for a high level Electric adapter to Datomic Client API.
+* **core.async issue** – Electric is a FRP abstraction, so other async paradigms like core.async must be bridged. the Electric library includes an experimental Datomic<>Missionary adapter which is used here, but it's just a scrappy POC. What we really need is a high level Electric Clojure adapter for Datomic. 
 
 ## Getting Started
 
