@@ -1,6 +1,5 @@
 (ns app.datomic-browser
   "must have datomic on classpath, and must load 'test ns"
-  #?(:cljs (:require-macros app.datomic-browser))
   #?(:cljs (:import [goog.math Long])) ; only this require syntax passes shadow in this file, why?
   (:require clojure.edn
             contrib.ednish
