@@ -1,6 +1,6 @@
-{:paths ["src"]
+{:paths ["src" "resources"]
  :deps {com.datomic/client-api {:mvn/version "1.0.58"}
-        com.hyperfiddle/electric {:mvn/version "v2-alpha-123-ga7fa624f"}
+        com.hyperfiddle/electric {:mvn/version "v2-alpha-167-gbd475584"}
         com.hyperfiddle/rcf {:mvn/version "20220926-202227"}
         org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/clojurescript {:mvn/version "1.11.60"}

@@ -10,7 +10,7 @@
 (def shadow-watch (delay @(requiring-resolve 'shadow.cljs.devtools.api/watch)))
 
 (def electric-server-config
-  {:host "0.0.0.0", :port 8080, :resources-path "resources/public"})
+  {:host "0.0.0.0", :port 8080, :resources-path "public"})
 
 (def datomic-client)
 (def datomic-conn)
