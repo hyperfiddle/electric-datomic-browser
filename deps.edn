@@ -1,10 +1,14 @@
 {:paths ["src" "resources"]
  :deps {com.datomic/client-api {:mvn/version "1.0.58"}
-        com.hyperfiddle/electric {:mvn/version "v2-alpha-167-gbd475584"}
+        com.hyperfiddle/electric {:mvn/version "v2-alpha-263-g89da9d11"}
         com.hyperfiddle/rcf {:mvn/version "20220926-202227"}
+        info.sunng/ring-jetty9-adapter 
+        {:mvn/version "0.17.7" ; is Jetty 10 actually despite the package name
+         :exclusions [org.slf4j/slf4j-api info.sunng/ring-jetty9-adapter-http3]}
         org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/clojurescript {:mvn/version "1.11.60"}
-        org.clojure/tools.logging {:mvn/version "1.2.4"}}
+        org.clojure/tools.logging {:mvn/version "1.2.4"}
+        ring-basic-authentication/ring-basic-authentication {:mvn/version "1.1.1"}}
  :mvn/repos {"my.datomic.com" {:url "https://my.datomic.com/repo"}}
  :aliases
  {:dev
@@ -13,7 +17,7 @@
     ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
     com.datomic/dev-local {:mvn/version "1.0.243"}
     com.google.guava/guava {:mvn/version "31.1-jre"} ; fix conflict - datomic cloud & shadow
-    thheller/shadow-cljs {:mvn/version "2.20.1"}}
+    thheller/shadow-cljs {:mvn/version "2.22.10"}}
    :jvm-opts
    ["-Xss2m" ; https://github.com/hyperfiddle/photon/issues/11
     "-XX:-OmitStackTraceInFastThrow"] ;; RCF - https://archive.md/NNt9r
