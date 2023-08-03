@@ -60,6 +60,18 @@ This is the technical thesis of the Hyperfiddle project. Now armed with network-
   * extract zip into datomic storage dir, that's it
 
 ```
+-- get Datomic Pro
+$ curl https://datomic-pro-downloads.s3.amazonaws.com/1.0.6735/datomic-pro-1.0.6735.zip -O
+$ unzip datomic-pro-1.0.6735.zip
+$ datomic-pro-1.0.6735/bin/transactor datomic-pro-1.0.6735/config/samples/dev-transactor-template.properties
+
+-- https://github.com/Datomic/mbrainz-sample
+$ wget https://s3.amazonaws.com/mbrainz datomic-mbrainz-1968-1973-backup-2017-07-20.tar -O mbrainz.tar
+$ tar -xvf mbrainz.tar
+-- https://datomic.narkive.com/OUskfRdr/backup-error
+$ datomic-pro-1.0.6735/bin/datomic restore-db file:/Users/dustin/src/hf/electric-datomic-viewer/state/mbrainz-1968-1973 datomic:dev://localhost:4334/mbrainz-1968-1973
+
+-- run app
 $ clj -A:dev -X user/main
 
 Starting Electric compiler and server...

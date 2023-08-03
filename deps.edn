@@ -1,5 +1,5 @@
 {:paths ["src" "resources"]
- :deps {com.datomic/client-api {:mvn/version "1.0.58"}
+ :deps {com.datomic/peer {:mvn/version "1.0.6735"}
         com.hyperfiddle/electric {:local/root "vendor/electric"}
         com.hyperfiddle/rcf {:mvn/version "20220926-202227"}
         info.sunng/ring-jetty9-adapter 
@@ -9,14 +9,11 @@
         org.clojure/clojurescript {:mvn/version "1.11.60"}
         org.clojure/tools.logging {:mvn/version "1.2.4"}
         ring-basic-authentication/ring-basic-authentication {:mvn/version "1.1.1"}}
- :mvn/repos {"my.datomic.com" {:url "https://my.datomic.com/repo"}}
  :aliases
  {:dev
   {:extra-deps
    {binaryage/devtools {:mvn/version "1.0.6"}
     ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
-    com.datomic/dev-local {:mvn/version "1.0.243"}
-    com.google.guava/guava {:mvn/version "31.1-jre"} ; fix conflict - datomic cloud & shadow
     thheller/shadow-cljs {:mvn/version "2.22.10"}}
    :jvm-opts
    ["-Xss2m" ; https://github.com/hyperfiddle/photon/issues/11

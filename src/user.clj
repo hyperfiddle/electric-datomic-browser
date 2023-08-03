@@ -1,6 +1,5 @@
 (ns user ; Must be ".clj" file, Clojure doesn't auto-load user.cljc
-  (:require datomic.client.api
-            datomic.client.api.async
+  (:require datomic.api
             [hyperfiddle.rcf :refer [tests]]
             [missionary.core :as m]))
 
@@ -12,7 +11,6 @@
 (def electric-server-config
   {:host "0.0.0.0", :port 8080, :resources-path "public"})
 
-(def datomic-client)
 (def datomic-conn)
 
 (defn main [& args]
@@ -23,12 +21,11 @@
   (comment (.stop server))
 
   ; inject datomic root bindings
-  (alter-var-root #'datomic-client (constantly (datomic.client.api/client {:server-type :dev-local :system "datomic-samples"})))
-  (alter-var-root #'datomic-conn (constantly (datomic.client.api/connect datomic-client {:db-name "mbrainz-subset"})))
+  (alter-var-root #'datomic-conn (constantly (datomic.api/connect "datomic:dev://localhost:4334/mbrainz-1968-1973")))
 
   ; inject test database, for repl only
-  (require '[datomic.client.api.async :as d])
-  (def db (datomic.client.api.async/db datomic-conn))
+  (require '[datomic.api :as d])
+  (def db (datomic.api/db datomic-conn))
   (hyperfiddle.rcf/enable!))
 
 ; Userland Electric code is lazy loaded by the shadow build due to usage of
@@ -44,9 +41,10 @@
   (type 1)
 
   (tests "healthcheck"
-    (->> (m/? (app.queries/query
-                '[:find (pull ?tx [:db/id :db/txInstant])
-                  :where [?tx :db/txInstant]]
-                db))
+    (->> (d/q
+           '[:find (pull ?tx [:db/id :db/txInstant])
+             :where [?tx :db/txInstant]]
+           db)
       (take 1))
-    := [[#:db{:id 13194139533312, :txInstant #inst"1970-01-01T00:00:00.000-00:00"}]]))
+    := [[#:db{:id 13194139533312, :txInstant #inst"1970-01-01T00:00:00.000-00:00"}]])
+  )
