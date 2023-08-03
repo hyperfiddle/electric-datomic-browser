@@ -1,6 +1,6 @@
 {:paths ["src" "resources"]
  :deps {com.datomic/client-api {:mvn/version "1.0.58"}
-        com.hyperfiddle/electric {:mvn/version "v2-alpha-263-g89da9d11"}
+        com.hyperfiddle/electric {:local/root "vendor/electric"}
         com.hyperfiddle/rcf {:mvn/version "20220926-202227"}
         info.sunng/ring-jetty9-adapter 
         {:mvn/version "0.17.7" ; is Jetty 10 actually despite the package name
