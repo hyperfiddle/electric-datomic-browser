@@ -1,14 +1,12 @@
 (ns app.datomic-browser
-  "must have datomic on classpath, and must load 'test ns"
-  #?(:cljs (:import [goog.math Long])) ; only this require syntax passes shadow in this file, why?
   (:require clojure.edn
             contrib.ednish
             [contrib.str :refer [any-matches?]]
             [contrib.data :refer [unqualify treelister]]
             #?(:clj [contrib.datomic-contrib :as dx])
-            #?(:cljs contrib.datomic-cloud-contrib)
             [contrib.datomic-m #?(:clj :as :cljs :as-alias) d]
             [contrib.gridsheet :as gridsheet :refer [Explorer]]
+            #?(:clj datomic.api)
             [hyperfiddle.electric :as e]
             [hyperfiddle.electric-dom2 :as dom]
             [hyperfiddle.history :as history]
@@ -205,24 +203,20 @@
       ::recent-tx (history/router 1 (e/server (RecentTx.)))
       (e/client (dom/text "no matching route: " (pr-str page))))))
 
-(def read-edn-str (partial clojure.edn/read-string
-                    {:readers #?(:cljs {'goog.math/Long goog.math.Long/fromString} ; datomic cloud long ids
-                                 :clj {})}))
-
 (e/defn DatomicBrowser []
   (e/client
     (binding [dom/node js/document.body
               history/encode contrib.ednish/encode-uri
-              history/decode #(or (contrib.ednish/decode-path % read-edn-str) [::summary])]
-
+              history/decode #(or (contrib.ednish/decode-path % clojure.edn/read-string) [::summary])]
       (history/router (history/HTML5-History.)
         (set! (.-title js/document) (str (clojure.string/capitalize (name (first history/route)))
                                       " - Datomic Browser"))
         (dom/pre (dom/text (contrib.str/pprint-str history/route)))
 
         (e/server
-          (binding [conn @(requiring-resolve 'user/datomic-conn)]
-            (binding [db (d/db conn)]
-              (binding [schema (new (dx/schema> db))]
+          (binding [conn @(requiring-resolve 'user/datomic-conn)] (assert (some? conn))
+            (binding [db (datomic.api/db conn)] (assert (some? db))
+              (binding [schema (new (dx/schema> db))] (assert (some? schema))
                 (e/client
+                  (assert (some? (e/server schema)))
                   (Page. history/route))))))))))
