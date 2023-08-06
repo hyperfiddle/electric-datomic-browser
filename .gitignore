@@ -10,3 +10,4 @@ report.html
 !.idea/ClojureProjectResolveSettings.xml
 *.iml
 /state
+/target

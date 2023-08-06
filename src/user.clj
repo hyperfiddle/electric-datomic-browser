@@ -1,6 +1,6 @@
 (ns user ; Must be ".clj" file, Clojure doesn't auto-load user.cljc
   (:require [datomic.api :as d]
-            [electric-server-java11-jetty10 :refer [start-server!]]
+            [app.server :refer [start-server!]]
             [hyperfiddle.rcf :refer [tests]]))
 
 ; lazy load dev stuff - for faster REPL startup and cleaner dev classpath

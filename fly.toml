@@ -1,0 +1,16 @@
+app = "electric-datomic-viewer"
+primary_region = "cdg"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[processes]
+  app = "java -DHYPERFIDDLE_ELECTRIC_SERVER_VERSION=$VERSION -jar app.jar"

@@ -1,8 +1,7 @@
 (ns ^:dev/always user ; Electric currently needs to rebuild everything when any file changes. Will fix
   (:require
     app.datomic-browser
-    hyperfiddle.electric
-    hyperfiddle.electric-dom2))
+    hyperfiddle.electric))
 
 (def electric-main
   (hyperfiddle.electric/boot ; Electric macroexpansion - Clojure to signals compiler

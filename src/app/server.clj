@@ -1,4 +1,4 @@
-(ns electric-server-java11-jetty10
+(ns app.server
   (:require [clojure.java.io :as io]
             [hyperfiddle.electric-jetty-adapter :as adapter]
             [clojure.tools.logging :as log]

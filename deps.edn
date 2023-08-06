@@ -19,4 +19,11 @@
    ["-Xss2m" ; https://github.com/hyperfiddle/photon/issues/11
     "-XX:-OmitStackTraceInFastThrow"] ;; RCF - https://archive.md/NNt9r
    :exec-fn user/main
-   :exec-args {}}}}
+   :exec-args {}}
+  :build
+  {:extra-paths ["src-build"]
+   :ns-default build
+   :extra-deps {io.github.clojure/tools.build {:git/tag "v0.8.2" :git/sha "ba1a2bf"}
+                io.github.seancorfield/build-clj {:git/tag "v0.8.0" :git/sha "9bd8b8a"}
+                thheller/shadow-cljs {:mvn/version "2.20.1"}}
+   :jvm-opts ["-Xss2m"]}}}

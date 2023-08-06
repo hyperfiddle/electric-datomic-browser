@@ -42,29 +42,19 @@ This is the technical thesis of the Hyperfiddle project. Now armed with network-
 
 # Dependencies
 
-* Datomic cloud dev local
-* Datomic client API
+* Datomic Pro (now free!)
 * [Electric Clojure](https://github.com/hyperfiddle/electric)
 * hyperfiddle.history (bundled with Electric) – experimental composable router
 * datomic/missionary adapter (bundled with Electric) – experimental streaming adapter for Datomic
 
-# Maturity: POC
-
-* **Websocket issue** - Electric uses a websocket, compatibility with Datomic Cloud Ions is unknown
-* **core.async issue** – Electric is a FRP abstraction, so other async paradigms like core.async must be bridged. the Electric library includes an experimental Datomic<>Missionary adapter which is used here, but it's just a scrappy POC. What we really need is a high level Electric Clojure adapter for Datomic. 
-
 # Getting Started
-
-* Install datomic dev-local: https://docs.datomic.com/cloud/dev-local.html
-* get mbrainz-subset dataset: https://docs.datomic.com/cloud/dev-local.html#samples
-  * extract zip into datomic storage dir, that's it
 
 ```
 -- get Datomic Pro
 $ cd state
 $ curl https://datomic-pro-downloads.s3.amazonaws.com/1.0.6735/datomic-pro-1.0.6735.zip -O
 $ unzip datomic-pro-1.0.6735.zip
-$ cd datomic-pro-1.0.6735.zip
+$ cd datomic-pro-1.0.6735
 $ bin/transactor config/samples/dev-transactor-template.properties
 
 -- https://github.com/Datomic/mbrainz-sample
@@ -74,7 +64,7 @@ $ tar -xvf mbrainz.tar
 $ datomic-pro-1.0.6735/bin/datomic restore-db file:/Users/dustin/src/hf/electric-datomic-viewer/state/mbrainz-1968-1973 datomic:dev://localhost:4334/mbrainz-1968-1973
 
 -- run app
-$ cd state/datomic-pro-1.0.6735.zip
+$ cd state/datomic-pro-1.0.6735
 $ bin/transactor config/samples/dev-transactor-template.properties
 -- second terminal
 $ clj -A:dev -X user/main
@@ -88,4 +78,10 @@ Datomic APIs detected:  #{datomic.client.api.async datomic.client.api}
 [:dev] Build completed. (225 files, 1 compiled, 0 warnings, 4.69s)
 
 👉 App server available at http://0.0.0.0:8080
+
+
+-- prod
+clojure -X:build uberjar :verbose true
+ls -l target/electric-datomic-viewer-7a17d6c-dirty-standalone.jar
+java -DHYPERFIDDLE_ELECTRIC_SERVER_VERSION=$VERSION -jar target/electric-datomic-viewer-7a17d6c-dirty-standalone.jar
 ```
