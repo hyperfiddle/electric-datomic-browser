@@ -1,5 +1,6 @@
 (ns app.datomic-browser
-  (:require clojure.edn
+  (:require [app.config :as config]
+            clojure.edn
             contrib.ednish
             [contrib.str :refer [any-matches?]]
             [contrib.data :refer [unqualify treelister]]
@@ -214,7 +215,7 @@
         (dom/pre (dom/text (contrib.str/pprint-str history/route)))
 
         (e/server
-          (binding [conn @(requiring-resolve 'user/datomic-conn)] (assert (some? conn))
+          (binding [conn config/datomic-conn] (assert (some? conn))
             (binding [db (datomic.api/db conn)] (assert (some? db))
               (binding [schema (new (dx/schema> db))] (assert (some? schema))
                 (e/client

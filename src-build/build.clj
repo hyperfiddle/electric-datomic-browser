@@ -45,9 +45,9 @@ on startup)"
   (b/copy-dir {:src-dirs   ["src" "resources"]
                :target-dir class-dir})
 
-  (println "Compiling server. Version:" version)
+  (println "Compiling server, version: " version, " basis: " basis)
   (b/compile-clj {:basis      basis
-                  :src-dirs   ["src"]
+                  :src-dirs   ["src" "src-prod"]
                   :ns-compile '[user]
                   :class-dir  class-dir})
 
