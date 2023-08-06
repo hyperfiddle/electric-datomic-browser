@@ -8,12 +8,13 @@
         org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/clojurescript {:mvn/version "1.11.60"}
         org.clojure/tools.logging {:mvn/version "1.2.4"}
+        ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
         ring-basic-authentication/ring-basic-authentication {:mvn/version "1.1.1"}}
  :aliases
  {:dev
-  {:extra-deps
+  {:extra-paths ["src-dev"] ; fix uberjar java.lang.NoClassDefFoundError: clojure/tools/logging/impl/LoggerFactory
+   :extra-deps
    {binaryage/devtools {:mvn/version "1.0.6"}
-    ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
     thheller/shadow-cljs {:mvn/version "2.22.10"}}
    :jvm-opts
    ["-Xss2m" ; https://github.com/hyperfiddle/photon/issues/11
