@@ -16,9 +16,9 @@
   (println "Starting Electric compiler and server...")
   (@shadow-start!) ; serves index.html as well
   (@shadow-watch :dev) ; depends on shadow server
+  (alter-var-root #'datomic-conn (constantly (d/connect "datomic:dev://localhost:4334/mbrainz-1968-1973"))) 
   (def server (start-server! electric-server-config))
   (comment (.stop server))
-  (alter-var-root #'datomic-conn (constantly (d/connect "datomic:dev://localhost:4334/mbrainz-1968-1973"))) 
   (def db (d/db datomic-conn)) ; inject test db, for repl only
   (hyperfiddle.rcf/enable!)
   (tests "datomic healthcheck"

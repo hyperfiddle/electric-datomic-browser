@@ -1,5 +1,4 @@
 (ns build
-  "build electric.jar library artifact and demos"
   (:require [clojure.tools.build.api :as b]
             [org.corfield.build :as bb]
             [shadow.cljs.devtools.api :as shadow-api] ; so as not to shell out to NPM for shadow
@@ -7,7 +6,7 @@
 
 (def lib 'com.hyperfiddle/electric-datomic-viewer)
 (def version (b/git-process {:git-args "describe --tags --long --always --dirty"}))
-(def basis (b/create-basis {:project "deps.edn"}))
+(def basis (b/create-basis {:project "deps.edn" :aliases [:prod]}))
 
 (defn clean [opts]
   (bb/clean opts))
@@ -49,13 +48,13 @@ on startup)"
   (println "Compiling server. Version:" version)
   (b/compile-clj {:basis      basis
                   :src-dirs   ["src"]
-                  :ns-compile '[prod]
+                  :ns-compile '[user]
                   :class-dir  class-dir})
 
   (println "Building uberjar")
   (b/uber {:class-dir class-dir
            :uber-file (str (or jar-name (default-jar-name {:version version})))
            :basis     basis
-           :main      'prod}))
+           :main      'user}))
 
 (defn noop [_])                         ; run to preload mvn deps
