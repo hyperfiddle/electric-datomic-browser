@@ -66,3 +66,18 @@ Datomic APIs detected:  #{datomic.client.api.async datomic.client.api}
 
 👉 App server available at http://0.0.0.0:8080
 ```
+
+# Deployment
+
+```
+fly status
+fly platform vm-sizes
+fly scale show
+fly scale vm shared-cpu-8x # for 2gb ram
+fly regions list
+fly regions add ewr gru sjc cdg
+fly scale count 1 --region ewr
+fly scale count 1 --region cdg
+fly scale count 1 --region sjc
+fly scale count 1 --region gru
+```
