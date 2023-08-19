@@ -9,14 +9,12 @@
 (def basis (b/create-basis {:project "deps.edn" :aliases [:prod]}))
 
 (defn clean [opts]
-  (bb/clean opts))
+  (bb/clean opts)
+  (b/delete {:path "resources/public/js"}))
 
 (def class-dir "target/classes")
 (defn default-jar-name [{:keys [version] :or {version version}}]
   (format "target/%s-%s-standalone.jar" (name lib) version))
-
-(defn clean-cljs [_]
-  (b/delete {:path "resources/public/js"}))
 
 (defn build-client
   "Prod optimized ClojureScript client build. (Note: in dev, the client is built 
@@ -33,28 +31,18 @@ on startup)"
 
 (defn uberjar [{:keys [jar-name version optimize debug verbose]
                 :or   {version version, optimize true, debug false, verbose false}}]
-  (println "Cleaning up before build")
+  (println "Compiling server, version: " version)
   (clean nil)
-
-  (println "Cleaning cljs compiler output")
-  (clean-cljs nil)
-
   (build-client {:optimize optimize, :debug debug, :verbose verbose, :version version})
-
-  (println "Bundling sources")
-  (b/copy-dir {:src-dirs   ["src" "resources"]
+  (b/copy-dir {:src-dirs ["src" "resources"]
                :target-dir class-dir})
-
-  (println "Compiling server, version: " version, " basis: " basis)
   (b/compile-clj {:basis      basis
                   :src-dirs   ["src" "src-prod"]
-                  :ns-compile '[user]
+                  :ns-compile '[prod]
                   :class-dir  class-dir})
-
-  (println "Building uberjar")
   (b/uber {:class-dir class-dir
-           :uber-file (str (or jar-name (default-jar-name {:version version})))
+           :uber-file "target/app.jar" #_(str (or jar-name (default-jar-name {:version version})))
            :basis     basis
-           :main      'user}))
+           :main      'prod}))
 
 (defn noop [_])                         ; run to preload mvn deps

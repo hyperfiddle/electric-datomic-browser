@@ -13,4 +13,4 @@ primary_region = "cdg"
   processes = ["app"]
 
 [processes]
-  app = "java -DHYPERFIDDLE_ELECTRIC_SERVER_VERSION=$VERSION -jar app.jar"
+  app = "./prod.sh $VERSION"
