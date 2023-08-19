@@ -1,5 +1,7 @@
 # Datomic browser — Electric Clojure example
 
+Live app hosted in Paris and New Jersey: https://electric-datomic-viewer.fly.dev/
+
 Today, Cognitect's REBL and other GUI data browsers are architected as desktop applications, because their expressive power comes from the **datafy/nav programming model**, where the GUI view process is co-located with the backend data sources, so that the view can directly query and traverse backend data structures as if at the REPL (data-navigate = fn composition). 
 
 The consequence of this co-located architecture is that these data browsers are historically not architected as web applications, because the **frontend/backend web app plumbing breaks composition**, which in turn breaks the data-nav=composition programming model. And that means we can't run these in prod, we they aren't linkable/sharable, and worst of all, we can't use the flexible and dynamic programming model based on data-nav=composition to power mission-critical web applications that match how people think.
