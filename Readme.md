@@ -1,6 +1,10 @@
 # Datomic browser — Electric Clojure example
 
-Live app hosted in Paris and New Jersey: https://electric-datomic-viewer.fly.dev/
+Live app: https://electric-datomic-viewer.fly.dev/
+* hosted in Paris and New Jersey
+* 20 second initial page load is because this Fly app is configured to "scale to zero", i.e., power off the instance when zero clients are connected. When the first client connects, Fly boots an instance on demand and the 20 second delay is due to the container booting Datomic before booting the Electric application. Subsequent refreshes are fast.
+
+# Motivation
 
 Today, Cognitect's REBL and other GUI data browsers are architected as desktop applications, because their expressive power comes from the **datafy/nav programming model**, where the GUI view process is co-located with the backend data sources, so that the view can directly query and traverse backend data structures as if at the REPL (data-navigate = fn composition). 
 
