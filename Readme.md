@@ -54,6 +54,7 @@ This is the technical thesis of the Hyperfiddle project. Now armed with network-
 # Getting Started
 
 ```
+$ git submodule update --init --recursive
 $ ./datomic_fixtures.sh    # create datomic db, download and seed with mbrains sample data
 $ state/datomic-pro/bin/transactor config/samples/dev-transactor-template.properties >>state/datomic.log 2>&1 &
 $ clj -A:dev -X user/main
