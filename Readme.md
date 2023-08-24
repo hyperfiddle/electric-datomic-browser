@@ -1,8 +1,6 @@
 # Datomic browser — Electric Clojure example
 
-Live app: https://electric-datomic-viewer.fly.dev/
-* hosted in Paris and New Jersey
-* 20 second initial page load is because this Fly app is configured to "scale to zero", i.e., power off the instance when zero clients are connected. When the first client connects, Fly boots an instance on demand and the 20 second delay is due to the container booting Datomic before booting the Electric application. Subsequent refreshes are fast.
+Live app: https://electric-datomic-viewer.fly.dev/ (hosted in Paris and New Jersey)
 
 # Motivation
 

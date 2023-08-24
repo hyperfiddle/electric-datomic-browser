@@ -5,12 +5,15 @@ primary_region = "cdg"
   PORT = "8080"
 
 [http_service]
+  processes = ["app"]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = true
-  auto_start_machines = true
-  min_machines_running = 0
-  processes = ["app"]
+
+  # Don't scale to zero, this is an important performance demo
+  # Current boot time is 30s mostly due to embedded Datomic startup
+  #auto_stop_machines = true
+  #auto_start_machines = true
+  #min_machines_running = 0  
 
 [processes]
   app = "./prod.sh $VERSION"
