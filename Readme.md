@@ -77,6 +77,7 @@ fly status
 fly platform vm-sizes
 fly scale show
 fly scale vm shared-cpu-8x # for 2gb ram
+fly scale memory 4096 -a electric-datomic-viewer
 fly regions list
 fly regions add ewr gru sjc cdg
 fly scale count 1 --region ewr
