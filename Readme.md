@@ -1,4 +1,4 @@
-# Datomic browser — Electric Clojure example
+# Datomic browser with Electric Clojure (v2)
 
 Live app: https://electric-datomic-viewer.fly.dev/ (hosted in Paris and New Jersey)
 
