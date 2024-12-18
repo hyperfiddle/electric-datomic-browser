@@ -1,6 +1,11 @@
-# Datomic browser with Electric Clojure (v2)
+# Datomic Browser — now Electric v3!
 
-Live app: https://electric-datomic-viewer.fly.dev/ (hosted in Paris and New Jersey)
+Live app: https://electric.hyperfiddle.net/datomic-browser.datomic-browser!DatomicBrowser/
+
+> [!NOTE]
+> Below is the old readme for the v2 implementation (available in [v2 branch](https://github.com/hyperfiddle/electric-datomic-browser/tree/v2)). As of today (2024 Dec 18) we have a new, better/faster/simpler implementation using Electric v3, however the src is currently in our internal monorepo with our other demos, and we don't yet have a good way to publish the src without needing to maintain yet another standalone repo.
+> 
+> Please DM @dustingetz in Slack if you have a use case for this!
 
 # Motivation
 
